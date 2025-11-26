@@ -36,6 +36,19 @@
 		},
 		{
 			"type": "npm",
+			"script": "compileWasm",
+			"label": "Compile graphRenderer",
+			"detail": "Compile rust graph renderer to wasm and js",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			},
+			"presentation": {
+				"clear": true
+			}
+		},
+		{
+			"type": "npm",
 			"script": "lint",
 			"label": "biome: check",
 			"detail": "check biome",

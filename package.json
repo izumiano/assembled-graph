@@ -7,6 +7,7 @@
 		"build": "tsc --build",
 		"watch": "tsc --watch",
 		"watchExamples": "tsc --watch -p examples/tsconfig.json",
+		"compileWasm": "cd src/graph-renderer && wasm-pack build --target web",
 		"test": "exit 0"
 	},
 	"keywords": [],
