@@ -35,8 +35,16 @@
 			}
 		},
 		{
-			"type": "npm",
-			"script": "compileWasm",
+			"type": "shell",
+			"windows": {
+				"command": "npm run compileWasm && xcopy src\\graph-renderer\\pkg dist\\graph-renderer\\pkg /s /e /h /I /y"
+			},
+			"linux": {
+				"command": "npm run compileWasm && cp -rf src/graph-renderer/pkg dist/graph-renderer/pkg"
+			},
+			"osx": {
+				"command": "npm run compileWasm && cp -rf src/graph-renderer/pkg dist/graph-renderer/pkg"
+			},
 			"label": "Compile graphRenderer",
 			"detail": "Compile rust graph renderer to wasm and js",
 			"group": {

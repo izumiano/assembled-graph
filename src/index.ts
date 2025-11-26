@@ -1,4 +1,4 @@
-import init, { get_array } from "../src/graph-renderer/pkg/graph_renderer.js";
+import init, { get_array } from "./graph-renderer/pkg/graph_renderer.js";
 
 export default class GraphManager {
 	private constructor() {}

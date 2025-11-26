@@ -16,6 +16,21 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: mv package.json dist/package.json
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: 1.91.1
+          target: wasm32-unknown-unknown
+          rust-src-dir: src/graph-renderer
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: "latest"
+      - name: Compile rust to wasm
+        run: npm run compileWasm
+      - run: mv src/graph-renderer/pkg dist/graph-renderer/pkg
+
       - uses: actions/upload-artifact@v5
         with:
           name: package-artifact
