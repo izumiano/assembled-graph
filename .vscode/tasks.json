@@ -1,0 +1,58 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start Dev",
+			"dependsOn": ["npm: watch", "npm: watchExamples"],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"presentation": {
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			}
+		},
+		{
+			"type": "npm",
+			"script": "watch",
+			"label": "npm: watch",
+			"detail": "start watching main",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			}
+		},
+		{
+			"type": "npm",
+			"script": "watchExamples",
+			"label": "npm: watchExamples",
+			"detail": "start watch examples",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			}
+		},
+		{
+			"type": "npm",
+			"script": "lint",
+			"label": "biome: check",
+			"detail": "check biome",
+			"group": {
+				"kind": "test",
+				"isDefault": false
+			}
+		},
+		{
+			"type": "npm",
+			"script": "biomeFix",
+			"label": "biome: fix",
+			"detail": "fix with biome",
+			"group": {
+				"kind": "test",
+				"isDefault": false
+			}
+		}
+	]
+}
