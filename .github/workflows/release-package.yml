@@ -22,8 +22,8 @@ jobs:
           version: "latest"
       - name: Compile rust to wasm
         run: npm run compileWasm
-      - run: mkdir -p dist/graph-renderer/pkg
-      - run: cp -r src/graph-renderer/pkg dist/graph-renderer/pkg
+      - run: mkdir -p dist/graph-renderer
+      - run: cp -r src/graph-renderer/pkg dist/graph-renderer
 
       - uses: actions/setup-node@v6
         with:
