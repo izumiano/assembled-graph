@@ -18,7 +18,9 @@ jobs:
       - uses: actions/upload-artifact@v5
         with:
           name: package-artifact
-          path: package.json
+          path: |
+            dist
+            package.json
 
   publish:
     runs-on: ubuntu-latest
