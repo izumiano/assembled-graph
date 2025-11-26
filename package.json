@@ -10,9 +10,12 @@
 	"keywords": [],
 	"author": "izumiano",
 	"license": "ISC",
+	"publishConfig": {
+		"@izumiano:registry": "https://npm.pkg.github.com"
+	},
 	"type": "commonjs",
 	"devDependencies": {
-		"@biomejs/biome": "^2.3.7",
+		"@biomejs/biome": "2.3.7",
 		"typescript": "^5.9.3"
 	}
 }
