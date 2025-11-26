@@ -8,15 +8,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-      - run: npm ci
-      - run: npm run build
-      - run: npm test
-      - run: mv package.json dist/package.json
-
       - name: Setup Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
@@ -31,6 +22,14 @@ jobs:
         run: npm run compileWasm
       - run: mv src/graph-renderer/pkg dist/graph-renderer/pkg
 
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: mv package.json dist/package.json
       - uses: actions/upload-artifact@v5
         with:
           name: package-artifact
