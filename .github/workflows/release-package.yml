@@ -19,7 +19,7 @@ jobs:
         with:
           name: package-artifact
           path: |
-            dist/
+            dist/**/*
             package.json
 
   publish:
