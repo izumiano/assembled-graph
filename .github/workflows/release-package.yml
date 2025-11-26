@@ -15,6 +15,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
+      - run: mv package.json dist/package.json
       - uses: actions/upload-artifact@v5
         with:
           name: package-artifact
