@@ -30,7 +30,7 @@ impl Color {
 
 #[wasm_bindgen]
 pub struct DataPoint {
-	title: String,
+	_title: String,
 	value: f32,
 }
 
@@ -38,7 +38,10 @@ pub struct DataPoint {
 impl DataPoint {
 	#[wasm_bindgen(constructor)]
 	pub fn new(title: String, value: f32) -> DataPoint {
-		DataPoint { title, value }
+		DataPoint {
+			_title: title,
+			value,
+		}
 	}
 }
 
