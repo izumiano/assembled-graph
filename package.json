@@ -8,6 +8,7 @@
 		"watch": "tsc --watch",
 		"watchExamples": "tsc --watch -p examples/tsconfig.json",
 		"compileWasm": "cd src/graph-renderer && wasm-pack build --target web",
+		"lint": "biome check",
 		"test": "exit 0"
 	},
 	"keywords": [],
