@@ -28,7 +28,28 @@ impl Color {
 	}
 }
 
-struct DrawBarsInfo {
+#[wasm_bindgen]
+pub struct DataPoint {
+	title: String,
+	value: f32,
+}
+
+#[wasm_bindgen]
+impl DataPoint {
+	#[wasm_bindgen(constructor)]
+	pub fn new(title: String, value: f32) -> DataPoint {
+		DataPoint { title, value }
+	}
+}
+
+#[wasm_bindgen]
+pub struct GraphRenderer {
+	data: Vec<DataPoint>,
+	pixels: Vec<u8>,
+	width: u32,
+	height: u32,
+	background_color: Color,
+
 	bottom: u32,
 	top: u32,
 	left: u32,
@@ -39,24 +60,38 @@ struct DrawBarsInfo {
 }
 
 #[wasm_bindgen]
-pub struct GraphRenderer {
-	pixels: Vec<u8>,
-	width: u32,
-	height: u32,
-	background_color: Color,
-}
-
-#[wasm_bindgen]
 impl GraphRenderer {
 	#[wasm_bindgen(constructor)]
-	pub fn new(width: u32, height: u32, background_color: Color) -> GraphRenderer {
+	pub fn new(
+		data: Vec<DataPoint>,
+		width: u32,
+		height: u32,
+		background_color: Color,
+
+		bottom: u32,
+		top: u32,
+		left: u32,
+		right: u32,
+		gap: u32,
+		min_width: u32,
+		min_height: u32,
+	) -> GraphRenderer {
 		let size = width * height * 4;
 		let pixels = vec![0; size as usize];
 		GraphRenderer {
+			data,
 			pixels,
 			width,
 			height,
 			background_color,
+
+			bottom,
+			top,
+			left,
+			right,
+			gap,
+			min_width,
+			min_height,
 		}
 	}
 
@@ -94,37 +129,39 @@ impl GraphRenderer {
 		}
 	}
 
-	fn draw_bars(&mut self, mut info: DrawBarsInfo) {
-		let temp_data: Vec<f32> = vec![0.0, 1.0, 0.5, 0.33, 1.0, 0.5];
-		let mut base_width = (self.width as i32 - info.left as i32 - info.right as i32
-			+ info.gap as i32) as f32
-			/ (temp_data.len() as f32);
+	fn draw_bars(&mut self, timestamp: u32) {
+		let mut base_width = (self.width as i32 - self.left as i32 - self.right as i32
+			+ self.gap as i32) as f32
+			/ (self.data.len() as f32);
 
-		let height = self.height as i32 - info.top as i32 - info.bottom as i32;
-		let unclamped_width = base_width - info.gap as f32;
+		let height = self.height as i32 - self.top as i32 - self.bottom as i32;
+		let unclamped_width = base_width - self.gap as f32;
 
 		if unclamped_width < 0.0 {
-			info.left = (info.left as i32 + unclamped_width as i32).to_u32();
-			base_width = ((self.width as i32 - info.left as i32 - info.right as i32 + info.gap as i32)
+			self.left = (self.left as i32 + unclamped_width as i32).to_u32();
+			base_width = ((self.width as i32 - self.left as i32 - self.right as i32 + self.gap as i32)
 				as f32
 				+ unclamped_width)
-				/ (temp_data.len() as f32);
+				/ (self.data.len() as f32);
 		}
 
-		for x in 0..temp_data.len() {
-			let x_pos = (x as f32 * base_width + info.left as f32).to_u32();
-			let width = unclamped_width.max(info.min_width as f32).to_u32();
-			let height = max((height as f32 * temp_data[x]).to_u32(), info.min_height);
-			let y_pos = (self.height as i32 - info.bottom as i32 - height as i32).to_u32();
+		for x in 0..self.data.len() {
+			let x_pos = (x as f32 * base_width + self.left as f32).to_u32();
+			let width = unclamped_width.max(self.min_width as f32).to_u32();
+			let height = max(
+				(height as f32 * self.data[x].value).to_u32(),
+				self.min_height,
+			);
+			let y_pos = (self.height as i32 - self.bottom as i32 - height as i32).to_u32();
 			self.draw_rect(
 				x_pos,
 				y_pos,
 				width,
 				height,
 				Color {
-					r: x as u8 * 50,
-					g: 50,
-					b: 0,
+					r: (x as f32 * 50.0 + (timestamp as f32 / 1000.0).sin() * 100.0) as u8,
+					g: (x as f32 * 50.0 + (timestamp as f32 / 1000.0 + 7.5).sin() * 100.0) as u8,
+					b: (x as f32 * 50.0 + (timestamp as f32 / 1000.0 + 5.0).sin() * 100.0) as u8,
 					a: 255,
 				},
 			);
@@ -142,14 +179,6 @@ impl GraphRenderer {
 			}
 		}
 
-		self.draw_bars(DrawBarsInfo {
-			bottom: 10,
-			top: 10,
-			left: 20,
-			right: 20,
-			gap: 10,
-			min_height: 10,
-			min_width: 10,
-		});
+		self.draw_bars(timestamp);
 	}
 }
