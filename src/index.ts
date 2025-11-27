@@ -169,9 +169,6 @@ class GraphRenderer {
 	}
 
 	public renderGraph(timestamp: number) {
-		this.ctx.fillStyle = "black";
-		this.ctx.fillRect(0, 0, this.width, this.height);
-
 		this.wasmGraphRenderer.update_pixels(timestamp);
 
 		this.imageData.data.set(this.pixelsArr);
