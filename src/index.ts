@@ -1,5 +1,6 @@
 import init, {
 	CanvasPixels,
+	Color,
 	type InitOutput,
 } from "./graph-renderer/pkg/graph_renderer.js";
 
@@ -51,7 +52,11 @@ class GraphRenderer {
 		this.width = canvas.width;
 		this.height = canvas.height;
 
-		this.canvasPixels = new CanvasPixels(this.width, this.height);
+		this.canvasPixels = new CanvasPixels(
+			this.width,
+			this.height,
+			new Color(1, 0, 0, 255),
+		);
 		this.wasmMemory = memory;
 		const pixelsPointer = this.canvasPixels.pixels_ptr();
 		this.pixelsArr = new Uint8ClampedArray(
