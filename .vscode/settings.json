@@ -1,0 +1,4 @@
+{
+	"rust-analyzer.linkedProjects": ["src/graph-renderer/Cargo.toml"],
+	"liveServer.settings.ignoreFiles": ["src/graph-renderer/**"]
+}
