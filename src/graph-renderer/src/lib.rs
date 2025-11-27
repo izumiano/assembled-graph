@@ -1,7 +1,11 @@
+use std::cmp::max;
 use std::cmp::min;
 use wasm_bindgen::prelude::*;
 
+use crate::utils::NumUtils;
+
 mod logging;
+mod utils;
 
 #[wasm_bindgen]
 pub struct Color {
@@ -30,11 +34,12 @@ struct DrawBarsInfo {
 	left: u32,
 	right: u32,
 	gap: u32,
-	count: u32,
+	min_width: u32,
+	min_height: u32,
 }
 
 #[wasm_bindgen]
-pub struct CanvasPixels {
+pub struct GraphRenderer {
 	pixels: Vec<u8>,
 	width: u32,
 	height: u32,
@@ -42,12 +47,12 @@ pub struct CanvasPixels {
 }
 
 #[wasm_bindgen]
-impl CanvasPixels {
+impl GraphRenderer {
 	#[wasm_bindgen(constructor)]
-	pub fn new(width: u32, height: u32, background_color: Color) -> CanvasPixels {
+	pub fn new(width: u32, height: u32, background_color: Color) -> GraphRenderer {
 		let size = width * height * 4;
 		let pixels = vec![0; size as usize];
-		CanvasPixels {
+		GraphRenderer {
 			pixels,
 			width,
 			height,
@@ -75,8 +80,8 @@ impl CanvasPixels {
 	}
 
 	pub fn draw_rect(&mut self, x: u32, y: u32, width: u32, height: u32, color: Color) {
-		let width = min(width, self.width as u32 - x);
-		let height = min(height, self.height as u32 - y);
+		let width = min(width as i32, self.width as i32 - x as i32) as u32;
+		let height = min(height as i32, self.height as i32 - y as i32) as u32;
 
 		for curr_y in y..(height + y) {
 			for curr_x in x..(width + x) {
@@ -89,16 +94,33 @@ impl CanvasPixels {
 		}
 	}
 
-	fn draw_bars(&mut self, info: DrawBarsInfo) {
-		let width =
-			((self.width - info.left - info.right + info.gap) as f32 / info.count as f32) as u32;
+	fn draw_bars(&mut self, mut info: DrawBarsInfo) {
+		let temp_data: Vec<f32> = vec![0.0, 1.0, 0.5, 0.33, 1.0, 0.5];
+		let mut base_width = (self.width as i32 - info.left as i32 - info.right as i32
+			+ info.gap as i32) as f32
+			/ (temp_data.len() as f32);
 
-		for x in 0..info.count {
+		let height = self.height as i32 - info.top as i32 - info.bottom as i32;
+		let unclamped_width = base_width - info.gap as f32;
+
+		if unclamped_width < 0.0 {
+			info.left = (info.left as i32 + unclamped_width as i32).to_u32();
+			base_width = ((self.width as i32 - info.left as i32 - info.right as i32 + info.gap as i32)
+				as f32
+				+ unclamped_width)
+				/ (temp_data.len() as f32);
+		}
+
+		for x in 0..temp_data.len() {
+			let x_pos = (x as f32 * base_width + info.left as f32).to_u32();
+			let width = unclamped_width.max(info.min_width as f32).to_u32();
+			let height = max((height as f32 * temp_data[x]).to_u32(), info.min_height);
+			let y_pos = (self.height as i32 - info.bottom as i32 - height as i32).to_u32();
 			self.draw_rect(
-				x * width + info.left,
-				info.top,
-				width - info.gap,
-				self.height - info.top - info.bottom,
+				x_pos,
+				y_pos,
+				width,
+				height,
 				Color {
 					r: x as u8 * 50,
 					g: 50,
@@ -125,8 +147,9 @@ impl CanvasPixels {
 			top: 10,
 			left: 20,
 			right: 20,
-			gap: 50,
-			count: 5,
+			gap: 10,
+			min_height: 10,
+			min_width: 10,
 		});
 	}
 }

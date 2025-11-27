@@ -1,7 +1,7 @@
 import init, {
-	CanvasPixels,
 	Color,
 	type InitOutput,
+	GraphRenderer as WasmGraphRenderer,
 } from "./graph-renderer/pkg/graph_renderer.js";
 
 export default class GraphManager {
@@ -35,7 +35,7 @@ class GraphRenderer {
 	private width: number;
 	private height: number;
 
-	private canvasPixels: CanvasPixels;
+	private canvasPixels: WasmGraphRenderer;
 	private wasmMemory: WebAssembly.Memory;
 	private pixelsArr: Uint8ClampedArray;
 	private imageData: ImageData;
@@ -52,7 +52,7 @@ class GraphRenderer {
 		this.width = canvas.width;
 		this.height = canvas.height;
 
-		this.canvasPixels = new CanvasPixels(
+		this.canvasPixels = new WasmGraphRenderer(
 			this.width,
 			this.height,
 			new Color(1, 0, 0, 255),
