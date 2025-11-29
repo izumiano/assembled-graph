@@ -6,7 +6,7 @@
 			"dependsOn": ["npm: watch", "npm: watchExamples"],
 			"group": {
 				"kind": "build",
-				"isDefault": true
+				"isDefault": false
 			},
 			"presentation": {
 				"panel": "shared",
@@ -49,7 +49,7 @@
 			"detail": "Compile rust graph renderer to wasm and js",
 			"group": {
 				"kind": "build",
-				"isDefault": false
+				"isDefault": true
 			},
 			"presentation": {
 				"clear": true
