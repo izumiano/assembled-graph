@@ -2,23 +2,24 @@ import GraphManager from "../../dist/index.js";
 
 const canvas = document.getElementById("graphCanvas") as HTMLCanvasElement;
 
-canvas.width = window.innerWidth / 2;
-canvas.height = window.innerHeight / 2;
+canvas.width = window.innerWidth - 20;
+canvas.height = window.innerHeight - 20;
 
 const graphManger = await GraphManager.create();
 const graph = graphManger.newGraph(
 	canvas,
 	[
-		{ title: "1", value: 0.5 },
-		{ title: "2", value: 1 },
-		{ title: "3", value: 0.7 },
-		{ title: "4", value: 0 },
-		{ title: "5", value: 0.33 },
-		{ title: "6", value: 0.9 },
+		{ title: "⭐", value: 10 },
+		{ title: "⭐⭐", value: 15 },
+		{ title: "⭐⭐⭐", value: 3 },
+		{ title: "⭐⭐⭐⭐", value: 0 },
+		{ title: "⭐⭐⭐⭐⭐", value: 5 },
 	],
 	{
 		backgroundColor: { r: 0, g: 0, b: 50 },
 		gap: 10,
+		titleFontSize: 25,
+		valueAxis: { width: 50 },
 		positioning: 10,
 		minWidth: 5,
 		minHeight: 5,
@@ -37,6 +38,6 @@ function animate(timestamp: number) {
 requestAnimationFrame(animate);
 
 window.onresize = () => {
-	graph.resize(window.innerWidth / 2, window.innerHeight / 2);
+	graph.resize(window.innerWidth - 30, window.innerHeight - 20);
 	graph.renderGraph(globalTimestamp);
 };
