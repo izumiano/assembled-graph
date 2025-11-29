@@ -1,8 +1,8 @@
 import init, {
 	type InitOutput,
+	BarChart as WasmBarChart,
 	Color as WasmColor,
 	DataPoint as WasmDataPoint,
-	GraphRenderer as WasmGraphRenderer,
 } from "./graph-renderer/pkg/graph_renderer.js";
 
 interface DataPoint {
@@ -99,7 +99,7 @@ class GraphRenderer {
 	private width: number;
 	private height: number;
 
-	private wasmGraphRenderer: WasmGraphRenderer;
+	private wasmGraphRenderer: WasmBarChart;
 	private wasmMemory: WebAssembly.Memory;
 	private pixelsArr: Uint8ClampedArray;
 	private imageData: ImageData;
@@ -123,7 +123,7 @@ class GraphRenderer {
 		this.width = canvas.width;
 		this.height = canvas.height;
 
-		this.wasmGraphRenderer = new WasmGraphRenderer(
+		this.wasmGraphRenderer = new WasmBarChart(
 			data,
 			this.width,
 			this.height,
@@ -169,7 +169,7 @@ class GraphRenderer {
 	}
 
 	public renderGraph(timestamp: number) {
-		this.wasmGraphRenderer.update_pixels(timestamp);
+		this.wasmGraphRenderer.render(timestamp);
 
 		this.imageData.data.set(this.pixelsArr);
 
