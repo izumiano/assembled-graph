@@ -4,7 +4,11 @@ import init, {
 	Color as WasmColor,
 	DataPoint as WasmDataPoint,
 } from "./graph-renderer/pkg/graph_renderer.js";
-import { fillTextWithMaxWidth, roundToNearestMultiple } from "./utils.js";
+import {
+	fillTextWithMaxWidth,
+	roundToNearestMultiple,
+	sleepFor,
+} from "./utils.js";
 
 interface DataPoint {
 	title: string;
@@ -34,7 +38,6 @@ type ValueAxisOptions = {
 };
 
 interface GraphRendererOptions {
-	startTimestamp?: number;
 	backgroundColor?: Color;
 	positioning?: Positioning;
 	gap?: number;
@@ -46,9 +49,16 @@ interface GraphRendererOptions {
 
 export default class GraphManager {
 	private initOutput: InitOutput;
+	private renderers: GraphRenderer[] = [];
+	private timestamp: number | undefined;
 
 	private constructor(initOutput: InitOutput) {
 		this.initOutput = initOutput;
+
+		requestAnimationFrame((timestamp) => {
+			this.timestamp = timestamp;
+			this.handleAnimation(timestamp);
+		});
 	}
 
 	public static async create() {
@@ -56,18 +66,36 @@ export default class GraphManager {
 		return new GraphManager(initOutput);
 	}
 
-	public newGraph(
+	private handleAnimation(timestamp: number) {
+		this.renderers.forEach((renderer) => {
+			renderer.renderGraph(timestamp);
+		});
+
+		this.timestamp = timestamp;
+
+		requestAnimationFrame(this.handleAnimation.bind(this));
+	}
+
+	public getTimestamp() {
+		return this.timestamp ?? 0;
+	}
+
+	public async newGraph(
 		canvas: HTMLCanvasElement,
 		data: DataPoint[],
 		options?: GraphRendererOptions,
 	) {
+		while (this.timestamp == null) {
+			await sleepFor(10);
+		}
+
 		options ??= {};
-		return new GraphRenderer(
+		const renderer = new GraphRenderer(
 			canvas,
 			this.initOutput.memory,
+			this.timestamp,
 			data.map((item) => new WasmDataPoint(item.title, item.value)),
 			{
-				startTimestamp: options.startTimestamp ?? 0,
 				backgroundColor: options.backgroundColor ?? {
 					r: 0,
 					g: 0,
@@ -99,6 +127,10 @@ export default class GraphManager {
 				minHeight: options.minHeight ?? 1,
 			},
 		);
+
+		this.renderers.push(renderer);
+
+		return renderer;
 	}
 
 	public resizeGraph(
@@ -131,6 +163,7 @@ class GraphRenderer {
 	constructor(
 		canvas: HTMLCanvasElement,
 		memory: WebAssembly.Memory,
+		startTimestamp: number,
 		data: WasmDataPoint[],
 		options: InternalGraphRendererOptions,
 	) {
@@ -148,7 +181,7 @@ class GraphRenderer {
 
 		this.wasmGraphRenderer = new WasmBarChart(
 			data,
-			options.startTimestamp,
+			startTimestamp,
 			this.width,
 			this.height,
 			new WasmColor(

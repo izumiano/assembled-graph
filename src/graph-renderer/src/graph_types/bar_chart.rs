@@ -1,8 +1,8 @@
 use std::cmp::max;
 use wasm_bindgen::prelude::*;
 
+use crate::animation::Animation;
 use crate::graph_types::utils::*;
-use crate::logging::Log;
 use crate::utils::NumUtils;
 
 #[wasm_bindgen]
@@ -43,7 +43,7 @@ struct ScaleLineObject {
 pub struct BarChart {
 	data: Vec<DataPoint>,
 	pixels: Vec<u8>,
-	start_timestamp: f32,
+	start_timestamp: f64,
 	width: u32,
 	height: u32,
 	background_color: Color,
@@ -73,7 +73,7 @@ impl BarChart {
 	#[wasm_bindgen(constructor)]
 	pub fn new(
 		mut data: Vec<DataPoint>,
-		start_timestamp: f32,
+		start_timestamp: f64,
 		width: u32,
 		height: u32,
 		background_color: Color,
@@ -232,7 +232,7 @@ impl BarChart {
 		}
 	}
 
-	fn calculate_bars(&mut self, timestamp: f32) {
+	fn calculate_bars(&mut self, timestamp: f64) {
 		let mut left = self.left + self.value_axis_width;
 		let mut base_width = (self.width as i32 - left as i32 - self.right as i32 + self.gap as i32)
 			as f32
@@ -251,12 +251,22 @@ impl BarChart {
 		}
 
 		for x in 0..self.data.len() {
+			let animation = Animation {
+				start_timestamp: self.start_timestamp,
+				start_state: 0.0,
+				delay: 100.0 * x as f64,
+				animation_time: 500.0,
+				end_state: 1.0,
+			};
+			let height_scale = animation.get_current(timestamp);
+
 			let x_pos = (x as f32 * base_width + left as f32).to_u32();
 			let width = unclamped_width.max(self.min_width as f32).to_u32();
-			let height = max(
+			let height = (max(
 				(height as f32 * self.data[x].value).to_u32(),
 				self.min_height,
-			);
+			) as f32
+				* height_scale) as u32;
 			let y_pos = (self.height as i32 - bottom as i32 - height as i32).to_u32();
 
 			let obj = &mut self.bars[x];
@@ -350,7 +360,7 @@ impl BarChart {
 		self.scale_line_count = line_count + 1;
 	}
 
-	pub fn update(&mut self, timestamp: f32) {
+	pub fn update(&mut self, timestamp: f64) {
 		self.calculate_scale_lines();
 		self.calculate_bars(timestamp);
 	}
