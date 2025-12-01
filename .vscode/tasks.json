@@ -35,24 +35,65 @@
 			}
 		},
 		{
-			"type": "shell",
-			"windows": {
-				"command": "npm run compileWasm && xcopy src\\graph-renderer\\pkg dist\\graph-renderer\\pkg /s /e /h /I /y"
-			},
-			"linux": {
-				"command": "npm run compileWasm && cp -rf src/graph-renderer/pkg dist/graph-renderer/pkg"
-			},
-			"osx": {
-				"command": "npm run compileWasm && cp -rf src/graph-renderer/pkg dist/graph-renderer/pkg"
-			},
-			"label": "Compile graphRenderer",
-			"detail": "Compile rust graph renderer to wasm and js",
+			"label": "Build graphRenderer -dev",
+			"dependsOn": ["compileWasm -debug", "Wasm -> dist"],
+			"dependsOrder": "sequence",
 			"group": {
 				"kind": "build",
 				"isDefault": true
 			},
 			"presentation": {
 				"clear": true
+			}
+		},
+		{
+			"label": "Build graphRenderer -release",
+			"dependsOn": ["compileWasm -release", "Wasm -> dist"],
+			"dependsOrder": "sequence",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			},
+			"presentation": {
+				"clear": true
+			}
+		},
+		{
+			"type": "npm",
+			"script": "compileWasmDev",
+			"label": "compileWasm -debug",
+			"detail": "compile rust to wasm -debug",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			}
+		},
+		{
+			"type": "npm",
+			"script": "compileWasm",
+			"label": "compileWasm -release",
+			"detail": "compile rust to wasm -release",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			}
+		},
+		{
+			"type": "shell",
+			"windows": {
+				"command": "xcopy src\\graph-renderer\\pkg dist\\graph-renderer\\pkg /s /e /h /I /y"
+			},
+			"linux": {
+				"command": "cp -rf src/graph-renderer/pkg dist/graph-renderer/pkg"
+			},
+			"osx": {
+				"command": "cp -rf src/graph-renderer/pkg dist/graph-renderer/pkg"
+			},
+			"label": "Wasm -> dist",
+			"detail": "Move wasm files to dist folder",
+			"group": {
+				"kind": "build",
+				"isDefault": false
 			}
 		},
 		{
