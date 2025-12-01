@@ -202,6 +202,14 @@ export default class BarChart
 				this.wasmGraphRenderer.getScaleLineXAt(i) - 10,
 				{ horizontalAlignment: "right" },
 			);
+
+			// this.ctx.strokeStyle = "red";
+			// this.ctx.strokeRect(
+			// 	0,
+			// 	this.wasmGraphRenderer.getScaleLineYAt(i),
+			// 	this.options.valueAxis.width,
+			// 	this.options.valueAxis.minPixelDistance,
+			// );
 		}
 
 		this.ctx.font = `${this.options.titleFontSize}px Arial`;
