@@ -10,7 +10,7 @@ const graphManager = await GraphManager.create();
 const graph = new BarChart(
 	canvas,
 	[
-		{ title: "⭐", value: 150 },
+		{ title: "⭐", value: 100 },
 		{ title: "⭐⭐", value: 30 },
 		{ title: "⭐⭐⭐", value: 3 },
 		{ title: "⭐⭐⭐⭐", value: 0 },
@@ -25,7 +25,7 @@ const graph = new BarChart(
 		backgroundColor: { r: 0, g: 0, b: 50 },
 		gap: 10,
 		titleFontSize: 25,
-		valueAxis: { width: 60, minPixelDistance: 25 },
+		valueAxis: { width: 55, minPixelDistance: 40 },
 		positioning: 10,
 		minWidth: 5,
 		minHeight: 5,
