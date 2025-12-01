@@ -1,4 +1,4 @@
-#![allow(unused)] // This line must be at the very top of the file
+#![allow(unused)]
 
 use wasm_bindgen::prelude::*;
 
@@ -106,16 +106,47 @@ impl LogWarn for String {
 }
 
 #[macro_export]
-macro_rules! log {
+macro_rules! log_format {
+	($title:literal, $($var:expr),*) => {{
+		#[cfg(debug_assertions)]{
+			let mut message = String::from("");
+			$(
+				message += &format!("{}: {:?}, ", stringify!($var), $var);
+			)*
+			format!("[{}] | {message}", $title)
+		}
+	}};
 	($($var:expr),*) => {
 		#[cfg(debug_assertions)]{
 			let mut message = String::from("");
 			$(
 				message += &format!("{}: {:?}, ", stringify!($var), $var);
 			)*
-			message.log();
+			message
 		}
 	};
+}
+
+#[macro_export]
+macro_rules! log {
+	($($x:tt)*) => {
+		#[cfg(debug_assertions)]{{
+			use crate::log_format;
+			use crate::logging::*;
+			log_format!($($x)*).log();
+		}}
+	}
+}
+
+#[macro_export]
+macro_rules! log_debug {
+	($($x:tt)*) => {
+		#[cfg(debug_assertions)]{{
+			use crate::log_format;
+			use crate::logging::*;
+			log_format!($($x)*).log_debug();
+		}}
+	}
 }
 
 #[macro_export]
