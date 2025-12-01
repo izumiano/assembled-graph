@@ -27,6 +27,7 @@ type ValueAxisOptions = {
 interface BarChartOptions extends GraphRendererOptions {
 	gap?: number;
 	titleFontSize?: number;
+	barCornerRadius?: number;
 	valueAxis?: ValueAxisOptions;
 	minWidth?: number;
 	minHeight?: number;
@@ -65,6 +66,7 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 			options.positioning.left,
 			options.positioning.right,
 			options.gap,
+			options.barCornerRadius,
 			options.minWidth,
 			options.minHeight,
 			options.valueAxis.width,
@@ -160,6 +162,7 @@ export default class BarChart
 						},
 			gap: options.gap ?? 0,
 			titleFontSize: options.titleFontSize ?? 10,
+			barCornerRadius: options.barCornerRadius ?? 10,
 			valueAxis: {
 				width: options.valueAxis?.width ?? 0,
 				smallestScale: options.valueAxis?.smallestScale ?? 1,

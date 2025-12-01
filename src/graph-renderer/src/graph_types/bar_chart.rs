@@ -1,4 +1,5 @@
 use std::cmp::max;
+use std::cmp::min;
 use wasm_bindgen::prelude::*;
 
 use crate::animation::Animation;
@@ -58,6 +59,7 @@ pub struct BarChart {
 	right: u32,
 
 	gap: u32,
+	bar_corner_radius: u32,
 	min_width: u32,
 	min_height: u32,
 
@@ -85,6 +87,7 @@ impl BarChart {
 		left: u32,
 		right: u32,
 		gap: u32,
+		bar_corner_radius: u32,
 		min_width: u32,
 		min_height: u32,
 
@@ -144,6 +147,7 @@ impl BarChart {
 			right,
 
 			gap,
+			bar_corner_radius,
 			min_width,
 			min_height,
 
@@ -220,21 +224,54 @@ impl BarChart {
 	}
 
 	fn draw_bars(&mut self) {
+		let color = Color {
+			r: 255,
+			g: 255,
+			b: 255,
+			a: 255,
+		};
 		for obj in &self.bars {
+			let corner_radius = min(self.bar_corner_radius, obj.width / 2);
 			draw_rect(
 				&mut self.pixels,
 				self.width,
 				self.height,
 				obj.x,
-				obj.y,
+				obj.y + corner_radius,
 				obj.width,
-				obj.height,
-				Color {
-					r: 255,
-					g: 255,
-					b: 255,
-					a: 255,
-				},
+				(obj.height as i32 - corner_radius as i32).to_u32(),
+				&color,
+			);
+
+			draw_rect(
+				&mut self.pixels,
+				self.width,
+				self.height,
+				obj.x + corner_radius,
+				obj.y,
+				(obj.width as i32 - corner_radius as i32 * 2).to_u32(),
+				min(corner_radius, obj.height),
+				&color,
+			);
+
+			draw_circle(
+				&mut self.pixels,
+				self.width,
+				(self.height as i32 - self.bottom as i32).to_u32(),
+				obj.x + corner_radius,
+				obj.y + corner_radius,
+				corner_radius,
+				&color,
+			);
+
+			draw_circle(
+				&mut self.pixels,
+				self.width,
+				(self.height as i32 - self.bottom as i32).to_u32(),
+				((obj.x + obj.width) as i32 - corner_radius as i32).to_u32(),
+				obj.y + corner_radius,
+				corner_radius,
+				&color,
 			);
 		}
 	}
@@ -305,7 +342,7 @@ impl BarChart {
 				scale_line.y,
 				scale_line.width,
 				scale_line.height,
-				Color {
+				&Color {
 					r: scale_line.intensity,
 					g: scale_line.intensity,
 					b: scale_line.intensity,
