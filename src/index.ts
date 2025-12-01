@@ -44,6 +44,8 @@ export default class GraphManager {
 
 	public addGraph(renderer: IGraphRenderer) {
 		renderer.init(this.initOutput.memory, this.timestamp);
+		renderer.update(this.timestamp);
+		renderer.render();
 
 		this.renderers.push(renderer);
 
