@@ -26,6 +26,7 @@ export interface WasmGraphRendererInterop<TGraph> {
 	resize(width: number, height: number): void;
 	update(timestamp: number): void;
 	render(): void;
+	getIsAnimating(): boolean;
 }
 
 export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
@@ -87,4 +88,5 @@ export interface IGraphRenderer {
 	init(memory: WebAssembly.Memory, timestamp: number): void;
 	update(timestamp: number): void;
 	render(): void;
+	isAnimating(): boolean;
 }

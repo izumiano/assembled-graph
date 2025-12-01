@@ -29,6 +29,9 @@ export default class GraphManager {
 
 	private handleAnimation(timestamp: number) {
 		this.renderers.forEach((renderer) => {
+			if (!renderer.isAnimating()) {
+				return;
+			}
 			renderer.update(timestamp);
 			renderer.render();
 		});

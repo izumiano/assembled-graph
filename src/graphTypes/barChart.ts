@@ -86,6 +86,10 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 		this.wasmGraph.render();
 	}
 
+	getIsAnimating() {
+		return this.wasmGraph.get_is_animating();
+	}
+
 	getScaleLinesCount() {
 		return this.wasmGraph.get_scale_lines_count();
 	}
@@ -226,5 +230,9 @@ export default class BarChart
 				{ horizontalAlignment: "center" },
 			);
 		}
+	}
+
+	public isAnimating() {
+		return this.wasmGraphRenderer.getIsAnimating();
 	}
 }

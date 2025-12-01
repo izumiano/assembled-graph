@@ -66,6 +66,8 @@ pub struct BarChart {
 	value_axis_min_pixel_distance: u32,
 
 	max_val: f32,
+
+	is_animating: bool,
 }
 
 #[wasm_bindgen]
@@ -150,6 +152,7 @@ impl BarChart {
 			value_axis_min_pixel_distance,
 
 			max_val,
+			is_animating: true,
 		}
 	}
 
@@ -212,6 +215,10 @@ impl BarChart {
 		self.scale_lines[index].value
 	}
 
+	pub fn get_is_animating(&self) -> bool {
+		self.is_animating
+	}
+
 	fn draw_bars(&mut self) {
 		for obj in &self.bars {
 			draw_rect(
@@ -250,15 +257,22 @@ impl BarChart {
 				/ (self.data.len() as f32);
 		}
 
+		let mut all_animations_done = true;
+
 		for x in 0..self.data.len() {
-			let animation = Animation {
-				start_timestamp: self.start_timestamp,
-				start_state: 0.0,
-				delay: 100.0 * x as f64,
-				animation_time: 500.0,
-				end_state: 1.0,
-			};
-			let height_scale = animation.get_current(timestamp);
+			let animation = Animation::new(
+				timestamp,
+				self.start_timestamp,
+				500.0,
+				100.0 * x as f64,
+				0.0,
+				1.0,
+			);
+
+			if !animation.is_completed() {
+				all_animations_done = false;
+			}
+			let height_scale = animation.get_current();
 
 			let x_pos = (x as f32 * base_width + left as f32).to_u32();
 			let width = unclamped_width.max(self.min_width as f32).to_u32();
@@ -276,6 +290,8 @@ impl BarChart {
 			obj.width = width;
 			obj.height = height;
 		}
+
+		self.is_animating = !all_animations_done;
 	}
 
 	fn draw_scale_lines(&mut self) {

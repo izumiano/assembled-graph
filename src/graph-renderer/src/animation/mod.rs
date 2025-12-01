@@ -1,24 +1,41 @@
 use std::f64::consts::PI;
 
 pub struct Animation {
-	pub start_timestamp: f64,
-	pub animation_time: f64,
-	pub delay: f64,
+	timestamp: f64,
+	animation_time: f64,
 
-	pub start_state: f32,
-	pub end_state: f32,
+	start_state: f32,
+	end_state: f32,
 }
 
 impl Animation {
-	pub fn get_current(&self, timestamp: f64) -> f32 {
-		if timestamp > self.start_timestamp + self.animation_time + self.delay {
+	pub fn new(
+		current_timestamp: f64,
+		start_timestamp: f64,
+		animation_time: f64,
+		delay: f64,
+		start_state: f32,
+		end_state: f32,
+	) -> Self {
+		Self {
+			timestamp: current_timestamp - start_timestamp - delay,
+			animation_time,
+			start_state,
+			end_state,
+		}
+	}
+
+	pub fn get_current(&self) -> f32 {
+		if self.is_completed() {
 			return self.end_state;
 		}
 
-		let current_time = timestamp - self.start_timestamp - self.delay;
-
-		let ratio = current_time / self.animation_time;
+		let ratio = self.timestamp / self.animation_time;
 		ease_out_sine(ratio) * (self.end_state - self.start_state) + self.start_state
+	}
+
+	pub fn is_completed(&self) -> bool {
+		self.timestamp > self.animation_time
 	}
 }
 
