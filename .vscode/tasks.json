@@ -18,6 +18,8 @@
 			"type": "npm",
 			"script": "watch",
 			"label": "npm: watch",
+			"problemMatcher": "$tsc-watch",
+			"isBackground": true,
 			"detail": "start watching main",
 			"group": {
 				"kind": "build",
@@ -28,6 +30,8 @@
 			"type": "npm",
 			"script": "watchExamples",
 			"label": "npm: watchExamples",
+			"problemMatcher": "$tsc-watch",
+			"isBackground": true,
 			"detail": "start watch examples",
 			"group": {
 				"kind": "build",
