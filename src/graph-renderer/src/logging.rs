@@ -104,3 +104,50 @@ impl LogWarn for String {
 		log_warn(self);
 	}
 }
+
+#[macro_export]
+macro_rules! log {
+	($($var:expr),*) => {
+		#[cfg(debug_assertions)]{
+			let mut message = String::from("");
+			$(
+				message += &format!("{}: {:?}, ", stringify!($var), $var);
+			)*
+			message.log();
+		}
+	};
+}
+
+#[macro_export]
+macro_rules! wasm_assert_eq {
+	($left:expr, $right:expr $(,)?) => ({
+		#[cfg(debug_assertions)]
+		{
+			let left_name = stringify!($left);
+			let right_name = stringify!($right);
+			match (&$left, &$right) {
+				(left_val, right_val) => {
+					if !(*left_val == *right_val) {
+						format!("assertion failed: `${} == ${} : ({:?} == {:?})`", left_name, right_name, left_val, right_val).log_error();
+						panic!();
+					}
+				}
+			}
+		}
+	});
+	($left:expr, $right:expr, $($arg:tt)+) => ({
+		#[cfg(debug_assertions)]
+		{
+			let left_name = stringify!($left);
+			let right_name = stringify!($right);
+			match (&$left, &$right) {
+				(left_val, right_val) => {
+					if !(*left_val == *right_val) {
+						format!("assertion failed: `${} == ${} : ({:?} == {:?})`: {}", left_name, right_name, left_val, right_val, format_args!($($arg)+)).log_error();
+						panic!();
+					}
+				}
+			}
+		}
+	});
+}
