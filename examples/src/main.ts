@@ -10,7 +10,7 @@ const graphManager = await GraphManager.create();
 const graph = new BarChart(
 	canvas,
 	[
-		{ title: "⭐", value: 100 },
+		{ title: "⭐", value: 150 },
 		{ title: "⭐⭐", value: 30 },
 		{ title: "⭐⭐⭐", value: 3 },
 		{ title: "⭐⭐⭐⭐", value: 0 },
@@ -34,7 +34,7 @@ const graph = new BarChart(
 graphManager.addGraph(graph);
 
 window.onresize = () => {
-	graph.resize(window.innerWidth, window.innerHeight);
+	graph.resize(document.body.clientWidth, document.body.clientHeight);
 	graph.update(graphManager.getTimestamp());
 	graph.render();
 };
