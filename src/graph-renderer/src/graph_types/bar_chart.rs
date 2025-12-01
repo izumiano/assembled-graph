@@ -165,6 +165,13 @@ impl BarChart {
 		self.height
 	}
 
+	pub fn resize(&mut self, width: u32, height: u32) {
+		self.width = width;
+		self.height = height;
+		let size = width * height * 4;
+		self.pixels = vec![0; size as usize];
+	}
+
 	pub fn get_bars_len(&self) -> usize {
 		self.bars.len()
 	}
@@ -203,13 +210,6 @@ impl BarChart {
 
 	pub fn get_scale_line_value_at(&self, index: usize) -> f32 {
 		self.scale_lines[index].value
-	}
-
-	pub fn resize(&mut self, width: u32, height: u32) {
-		self.width = width;
-		self.height = height;
-		let size = width * height * 4;
-		self.pixels = vec![0; size as usize];
 	}
 
 	fn draw_bars(&mut self) {
@@ -309,32 +309,35 @@ impl BarChart {
 		let height = (self.height as i32 - self.top as i32 - self.bottom as i32) as f32;
 		let mut pixel_distance = (smallest_scale / self.max_val) * height;
 
-		let mut mult = 1;
+		let mut mult: i64 = 1;
 
 		if pixel_distance < min_pixel_dist {
-			mult = 2i32.pow((min_pixel_dist / pixel_distance).ceil() as u32 - 1);
+			mult = (min_pixel_dist / pixel_distance).ceil_nearest_power_2() as i64;
 			pixel_distance *= mult as f32;
 		}
 
 		let mut line_count = (height / pixel_distance).to_u32() + 1;
 		for i in 1..line_count {
-			let ratio = (pixel_distance * i as f32) / height;
-			if ratio > 0.99 {
+			let total_pixel_dist = pixel_distance * i as f32;
+			if (self.height as f32 - self.bottom as f32 - total_pixel_dist - self.top as f32)
+				< min_pixel_dist * (2.0 / 3.0)
+			{
 				line_count -= 1;
 				continue;
 			}
 
+			let ratio = total_pixel_dist / height;
+
 			let value = ratio * self.max_val;
 
 			let modu = (value.round() % (smallest_scale * mult as f32 * 2.0)).to_u32();
+			let y =
+				(self.height as i32 - self.bottom as i32 - thickness as i32 - total_pixel_dist as i32)
+					.to_u32();
 
 			let scale_line = &mut self.scale_lines[i as usize];
 			scale_line.x = x_offset;
-			scale_line.y = (self.height as i32
-				- self.bottom as i32
-				- thickness as i32
-				- (pixel_distance * i as f32) as i32)
-				.to_u32();
+			scale_line.y = y;
 			scale_line.width = (self.width as i32 - x_offset as i32).to_u32();
 			scale_line.height = thickness;
 			scale_line.intensity = if modu == 0 { 150 } else { 80 };
