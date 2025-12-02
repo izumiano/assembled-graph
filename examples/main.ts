@@ -1,5 +1,5 @@
-import BarChart from "../../dist/graphTypes/barChart.js";
-import GraphManager from "../../dist/index.js";
+import BarChart from "../dist/graphTypes/barChart.js";
+import GraphManager from "../dist/index.js";
 
 const canvas = document.getElementById("graphCanvas") as HTMLCanvasElement;
 
