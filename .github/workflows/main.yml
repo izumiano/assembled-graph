@@ -82,7 +82,7 @@ jobs:
       - uses: actions/download-artifact@v6
         with:
           name: package-artifact
-          path: dist # Download artifact to current directory
+          path: dist
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
