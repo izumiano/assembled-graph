@@ -23,6 +23,7 @@ impl DataPoint {
 	}
 }
 
+#[allow(dead_code)]
 #[derive(Clone, PartialEq, Eq)]
 enum PointerState {
 	None,
