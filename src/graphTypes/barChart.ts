@@ -9,6 +9,7 @@ import {
 	GraphRenderer,
 	type GraphRendererOptions,
 	type IGraphRenderer,
+	type PointerType,
 	type Positioning,
 	type WasmGraphRendererInterop,
 } from "./graphRenderer.js";
@@ -81,8 +82,8 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	resize(width: number, height: number) {
 		this.wasmGraph.resize(width, height);
 	}
-	update(timestamp: number) {
-		this.wasmGraph.update(timestamp);
+	update(timestamp: number, pointer: PointerType) {
+		this.wasmGraph.update(timestamp, pointer?.x, pointer?.y);
 	}
 	render() {
 		this.wasmGraph.render();
@@ -185,11 +186,12 @@ export default class BarChart
 		super._init(memory, wasmGraphRenderer);
 	}
 
-	public update(timestamp: number): void {
-		this.wasmGraphRenderer.update(timestamp);
+	public update(timestamp: number, pointer: PointerType): void {
+		this.wasmGraphRenderer.update(timestamp, pointer);
 	}
 
 	public render() {
+		console.log("render");
 		this.wasmGraphRenderer.render();
 
 		this.imageData.data.set(this.pixelsArr);

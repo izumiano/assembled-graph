@@ -1,10 +1,15 @@
 import init, { type InitOutput } from "./graph-renderer/pkg/graph_renderer.js";
-import type { IGraphRenderer } from "./graphTypes/graphRenderer.js";
+import type {
+	GraphRenderer,
+	IGraphRenderer,
+	WasmGraphRendererInterop,
+} from "./graphTypes/graphRenderer.js";
 import { sleepFor } from "./utils.js";
 
 export default class GraphManager {
 	private initOutput: InitOutput;
-	private renderers: IGraphRenderer[] = [];
+	private renderers: (IGraphRenderer &
+		GraphRenderer<unknown, WasmGraphRendererInterop<unknown>>)[] = [];
 	private timestamp!: number;
 
 	private constructor(initOutput: InitOutput) {
@@ -32,7 +37,7 @@ export default class GraphManager {
 			if (!renderer.isAnimating()) {
 				return;
 			}
-			renderer.update(timestamp);
+			renderer.update(timestamp, renderer.pointer);
 			renderer.render();
 		});
 
@@ -45,13 +50,91 @@ export default class GraphManager {
 		return this.timestamp ?? 0;
 	}
 
-	public addGraph(renderer: IGraphRenderer) {
+	public addGraph<
+		TGraphRenderer extends GraphRenderer<
+			unknown,
+			WasmGraphRendererInterop<unknown>
+		> &
+			IGraphRenderer,
+	>(renderer: TGraphRenderer) {
 		renderer.init(this.initOutput.memory, this.timestamp);
-		renderer.update(this.timestamp);
+		renderer.update(this.timestamp, null);
 		renderer.render();
+
+		const canvas = renderer.getCanvas();
+		this.handleInput(canvas, renderer);
 
 		this.renderers.push(renderer);
 
 		return renderer;
+	}
+
+	private handleMoveInput(
+		e: MouseEvent | Touch,
+		canvas: HTMLCanvasElement,
+		renderer: IGraphRenderer &
+			GraphRenderer<unknown, WasmGraphRendererInterop<unknown>>,
+	) {
+		const rect = canvas.getBoundingClientRect();
+		const mouseX = e.clientX - rect.left;
+		const mouseY = e.clientY - rect.top;
+		renderer.pointer = { x: mouseX, y: mouseY };
+		renderer.update(this.timestamp, renderer.pointer);
+	}
+
+	private handleEndInput(
+		renderer: IGraphRenderer &
+			GraphRenderer<unknown, WasmGraphRendererInterop<unknown>>,
+	) {
+		renderer.pointer = null;
+		renderer.update(this.timestamp, renderer.pointer);
+	}
+
+	private handleInput(
+		canvas: HTMLCanvasElement,
+		renderer: IGraphRenderer &
+			GraphRenderer<unknown, WasmGraphRendererInterop<unknown>>,
+	) {
+		canvas.addEventListener("mousemove", (e) =>
+			this.handleMoveInput(e, canvas, renderer),
+		);
+
+		canvas.addEventListener("mouseleave", () => {
+			this.handleEndInput(renderer);
+		});
+
+		canvas.addEventListener("touchstart", (e) => {
+			e.preventDefault();
+			const touch = e.touches[0];
+			if (!touch) {
+				return;
+			}
+			this.handleMoveInput(touch, canvas, renderer);
+		});
+
+		canvas.addEventListener("touchmove", (e) => {
+			const touch = e.touches[0];
+			if (!touch) {
+				return;
+			}
+			e.preventDefault();
+			this.handleMoveInput(touch, canvas, renderer);
+		});
+
+		canvas.addEventListener("touchcancel", (e) => {
+			if (e.targetTouches.length > 0) {
+				return;
+			}
+			e.preventDefault();
+			this.handleEndInput(renderer);
+		});
+
+		canvas.addEventListener("touchend", (e) => {
+			if (e.targetTouches.length > 0) {
+				return;
+			}
+			e.preventDefault();
+			this.handleEndInput(renderer);
+		});
 	}
 }

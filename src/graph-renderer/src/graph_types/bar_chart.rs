@@ -23,12 +23,21 @@ impl DataPoint {
 	}
 }
 
-struct DataObject {
+#[derive(Clone, PartialEq, Eq)]
+enum PointerState {
+	None,
+	Hover,
+	Selected,
+}
+
+struct BarData {
 	title: String,
 	x: u32,
 	y: u32,
 	width: u32,
 	height: u32,
+	color: Color,
+	pointer_state: PointerState,
 }
 
 struct ScaleLineObject {
@@ -49,7 +58,7 @@ pub struct BarChart {
 	height: u32,
 	background_color: Color,
 
-	bars: Vec<DataObject>,
+	bars: Vec<BarData>,
 	scale_lines: Vec<ScaleLineObject>,
 	scale_line_count: u32,
 
@@ -97,18 +106,25 @@ impl BarChart {
 	) -> BarChart {
 		let size = width * height * 4;
 		let pixels = vec![0; size as usize];
-		let mut bars: Vec<DataObject> = Vec::with_capacity(data.len());
+		let mut bars: Vec<BarData> = Vec::with_capacity(data.len());
 		let mut scale_lines: Vec<ScaleLineObject> = Vec::with_capacity(100);
 		let scale_line_count = 0;
 
 		let mut max_val = 0.0;
 		for i in 0..data.len() {
-			bars.push(DataObject {
+			bars.push(BarData {
 				title: data[i].title.clone(),
 				x: 0,
 				y: 0,
 				width: 0,
 				height: 0,
+				color: Color {
+					r: 255,
+					g: 255,
+					b: 255,
+					a: 255,
+				},
+				pointer_state: PointerState::None,
 			});
 
 			max_val = data[i].value.max(max_val);
@@ -224,22 +240,17 @@ impl BarChart {
 	}
 
 	fn draw_bars(&mut self) {
-		let color = Color {
-			r: 255,
-			g: 255,
-			b: 255,
-			a: 255,
-		};
-		for obj in &self.bars {
-			let corner_radius = min(self.bar_corner_radius, obj.width / 2);
+		for bar in &self.bars {
+			let corner_radius = min(self.bar_corner_radius, bar.width / 2);
+			let color = &bar.color;
 			draw_rect(
 				&mut self.pixels,
 				self.width,
 				self.height,
-				obj.x,
-				obj.y + corner_radius,
-				obj.width,
-				(obj.height as i32 - corner_radius as i32).to_u32(),
+				bar.x,
+				bar.y + corner_radius,
+				bar.width,
+				(bar.height as i32 - corner_radius as i32).to_u32(),
 				&color,
 			);
 
@@ -247,10 +258,10 @@ impl BarChart {
 				&mut self.pixels,
 				self.width,
 				self.height,
-				obj.x + corner_radius,
-				obj.y,
-				(obj.width as i32 - corner_radius as i32 * 2).to_u32(),
-				min(corner_radius, obj.height),
+				bar.x + corner_radius,
+				bar.y,
+				(bar.width as i32 - corner_radius as i32 * 2).to_u32(),
+				min(corner_radius, bar.height),
 				&color,
 			);
 
@@ -258,8 +269,8 @@ impl BarChart {
 				&mut self.pixels,
 				self.width,
 				(self.height as i32 - self.bottom as i32).to_u32(),
-				obj.x + corner_radius,
-				obj.y + corner_radius,
+				bar.x + corner_radius,
+				bar.y + corner_radius,
 				corner_radius,
 				&color,
 			);
@@ -268,15 +279,15 @@ impl BarChart {
 				&mut self.pixels,
 				self.width,
 				(self.height as i32 - self.bottom as i32).to_u32(),
-				((obj.x + obj.width) as i32 - corner_radius as i32).to_u32(),
-				obj.y + corner_radius,
+				((bar.x + bar.width) as i32 - corner_radius as i32).to_u32(),
+				bar.y + corner_radius,
 				corner_radius,
 				&color,
 			);
 		}
 	}
 
-	fn calculate_bars(&mut self, timestamp: f64) {
+	fn calculate_bars(&mut self, timestamp: f64, pointer_x: Option<u32>, pointer_y: Option<u32>) {
 		let mut left = self.left + self.value_axis_width;
 		let mut base_width = (self.width as i32 - left as i32 - self.right as i32 + self.gap as i32)
 			as f32
@@ -309,6 +320,7 @@ impl BarChart {
 			if !animation.is_completed() {
 				all_animations_done = false;
 			}
+
 			let height_scale = animation.get_current();
 
 			let x_pos = (x as f32 * base_width + left as f32).to_u32();
@@ -320,12 +332,42 @@ impl BarChart {
 				* height_scale) as u32;
 			let y_pos = (self.height as i32 - bottom as i32 - height as i32).to_u32();
 
-			let obj = &mut self.bars[x];
+			let bar = &mut self.bars[x];
 
-			obj.x = x_pos;
-			obj.y = y_pos;
-			obj.width = width;
-			obj.height = height;
+			bar.x = x_pos;
+			bar.y = y_pos;
+			bar.width = width;
+			bar.height = height;
+
+			let prev_pointer_state = bar.pointer_state.clone();
+
+			if let Some(pointer_x) = pointer_x
+				&& let Some(pointer_y) = pointer_y
+				&& pointer_x >= x_pos
+				&& pointer_x <= x_pos + width
+				&& pointer_y >= y_pos
+				&& pointer_y <= y_pos + height
+			{
+				bar.color = Color {
+					r: 200,
+					g: 200,
+					b: 255,
+					a: 255,
+				};
+				bar.pointer_state = PointerState::Hover;
+			} else {
+				bar.color = Color {
+					r: 255,
+					g: 255,
+					b: 255,
+					a: 255,
+				};
+				bar.pointer_state = PointerState::None;
+			}
+
+			if bar.pointer_state != prev_pointer_state {
+				all_animations_done = false;
+			}
 		}
 
 		self.is_animating = !all_animations_done;
@@ -416,9 +458,9 @@ impl BarChart {
 		self.scale_line_count = line_count + 1;
 	}
 
-	pub fn update(&mut self, timestamp: f64) {
+	pub fn update(&mut self, timestamp: f64, pointer_x: Option<u32>, pointer_y: Option<u32>) {
 		self.calculate_scale_lines();
-		self.calculate_bars(timestamp);
+		self.calculate_bars(timestamp, pointer_x, pointer_y);
 	}
 
 	pub fn render(&mut self) {

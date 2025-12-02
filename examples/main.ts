@@ -3,8 +3,8 @@ import GraphManager from "../dist/index.js";
 
 const canvas = document.getElementById("graphCanvas") as HTMLCanvasElement;
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+canvas.width = document.body.clientWidth;
+canvas.height = document.body.clientHeight;
 
 const graphManager = await GraphManager.create();
 const graph = new BarChart(
@@ -36,6 +36,6 @@ graphManager.addGraph(graph);
 
 window.onresize = () => {
 	graph.resize(document.body.clientWidth, document.body.clientHeight);
-	graph.update(graphManager.getTimestamp());
+	graph.update(graphManager.getTimestamp(), graph.pointer);
 	graph.render();
 };

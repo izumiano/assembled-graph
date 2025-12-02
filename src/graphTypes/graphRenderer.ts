@@ -24,10 +24,15 @@ export interface WasmGraphRendererInterop<TGraph> {
 
 	getPixelsPtr(): number;
 	resize(width: number, height: number): void;
-	update(timestamp: number): void;
+	update(timestamp: number, pointer: PointerType): void;
 	render(): void;
 	getIsAnimating(): boolean;
 }
+
+export type PointerType = {
+	x: number;
+	y: number;
+} | null;
 
 export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 	protected canvas: HTMLCanvasElement;
@@ -41,6 +46,8 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 
 	protected wasmGraphRenderer!: WasmInterop;
 
+	public pointer: PointerType;
+
 	constructor(canvas: HTMLCanvasElement) {
 		const ctx = canvas.getContext("2d");
 
@@ -53,6 +60,7 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 		this.width = canvas.width;
 		this.height = canvas.height;
 		this.imageData = new ImageData(this.width, this.height);
+		this.pointer = null;
 	}
 
 	protected _init(memory: WebAssembly.Memory, wasmGraphRenderer: WasmInterop) {
@@ -82,11 +90,15 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 		);
 		this.imageData = new ImageData(this.width, this.height);
 	}
+
+	public getCanvas() {
+		return this.canvas;
+	}
 }
 
 export interface IGraphRenderer {
 	init(memory: WebAssembly.Memory, timestamp: number): void;
-	update(timestamp: number): void;
+	update(timestamp: number, pointer: PointerType): void;
 	render(): void;
 	isAnimating(): boolean;
 }
