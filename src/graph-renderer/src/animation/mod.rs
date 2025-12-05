@@ -1,37 +1,41 @@
 use std::f64::consts::PI;
 
-pub struct Animation {
-	timestamp: f64,
-	animation_time: f64,
-
-	start_state: f32,
-	end_state: f32,
+pub trait AnimationData<T> {
+	fn get_timestamp(&self) -> f64;
+	fn get_start_state(&self) -> T;
+	fn get_end_state(&self) -> T;
+	fn get_current(&self, ratio: f32) -> T;
 }
 
-impl Animation {
+pub struct Animation<'a, T> {
+	anim_data: &'a dyn AnimationData<T>,
+
+	timestamp: f64,
+	animation_time: f64,
+}
+
+impl<'a, T> Animation<'a, T> {
 	pub fn new(
+		anim_data: &'a impl AnimationData<T>,
 		current_timestamp: f64,
-		start_timestamp: f64,
 		animation_time: f64,
 		delay: f64,
-		start_state: f32,
-		end_state: f32,
 	) -> Self {
 		Self {
-			timestamp: current_timestamp - start_timestamp - delay,
+			anim_data,
+			timestamp: current_timestamp - anim_data.get_timestamp() - delay,
 			animation_time,
-			start_state,
-			end_state,
 		}
 	}
 
-	pub fn get_current(&self) -> f32 {
+	pub fn get_current(&self) -> T {
 		if self.is_completed() {
-			return self.end_state;
+			return self.anim_data.get_end_state();
 		}
 
 		let ratio = self.timestamp / self.animation_time;
-		ease_out_sine(ratio) * (self.end_state - self.start_state) + self.start_state
+
+		self.anim_data.get_current(ease_out_sine(ratio))
 	}
 
 	pub fn is_completed(&self) -> bool {
@@ -41,4 +45,50 @@ impl Animation {
 
 fn ease_out_sine(x: f64) -> f32 {
 	((x * PI) / 2.0).sin() as f32
+}
+
+pub struct AnimationStateData {
+	pub from: f32,
+	pub to: f32,
+}
+
+#[macro_export]
+macro_rules! DefineAnimation {
+	($name:ident, $name2:ident, $($field_name:ident),*) => {
+		struct $name {
+			timestamp: f64,
+			$($field_name: AnimationStateData),*
+		}
+
+		struct $name2 {
+			$($field_name: f32),*
+		}
+
+		impl AnimationData<$name2> for $name {
+			fn get_timestamp(&self) -> f64 {
+				self.timestamp
+			}
+
+			fn get_start_state(&self) -> $name2 {
+				$name2 {
+					$($field_name: self.$field_name.from),*
+				}
+			}
+
+			fn get_end_state(&self) -> $name2 {
+				$name2 {
+					$($field_name: self.$field_name.to),*
+				}
+			}
+
+			fn get_current(&self, ratio: f32) -> $name2 {
+				let start_state = self.get_start_state();
+				let end_state = self.get_end_state();
+				$name2 {
+					$($field_name: ratio * (end_state.$field_name - start_state.$field_name)
+						+ start_state.$field_name),*
+				}
+			}
+		}
+	};
 }

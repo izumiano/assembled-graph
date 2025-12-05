@@ -3,8 +3,11 @@ use std::cmp::min;
 use wasm_bindgen::prelude::*;
 
 use crate::animation::Animation;
+use crate::animation::AnimationData;
+use crate::animation::AnimationStateData;
 use crate::graph_types::utils::*;
 use crate::utils::NumUtils;
+use crate::DefineAnimation;
 
 #[wasm_bindgen]
 pub struct DataPoint {
@@ -23,13 +26,19 @@ impl DataPoint {
 	}
 }
 
-#[allow(dead_code)]
-#[derive(Clone, PartialEq, Eq)]
 enum PointerState {
 	None,
 	Hover,
-	Selected,
 }
+
+DefineAnimation!(
+	BarHoverAnimationData,
+	CurrentBarHoverAnimData,
+	scale,
+	color_t
+);
+
+DefineAnimation!(BarHeightAnimData, CurrentBarHeightAnimData, scale);
 
 struct BarData {
 	title: String,
@@ -37,8 +46,11 @@ struct BarData {
 	y: u32,
 	width: u32,
 	height: u32,
+	scale: f32,
 	color: Color,
 	pointer_state: PointerState,
+
+	anim_target: BarHoverAnimationData,
 }
 
 struct ScaleLineObject {
@@ -119,6 +131,7 @@ impl BarChart {
 				y: 0,
 				width: 0,
 				height: 0,
+				scale: 1.0,
 				color: Color {
 					r: 255,
 					g: 255,
@@ -126,6 +139,11 @@ impl BarChart {
 					a: 255,
 				},
 				pointer_state: PointerState::None,
+				anim_target: BarHoverAnimationData {
+					timestamp: start_timestamp,
+					scale: AnimationStateData { from: 1.0, to: 1.0 },
+					color_t: AnimationStateData { from: 0.0, to: 0.0 },
+				},
 			});
 
 			max_val = data[i].value.max(max_val);
@@ -244,13 +262,15 @@ impl BarChart {
 		for bar in &self.bars {
 			let corner_radius = min(self.bar_corner_radius, bar.width / 2);
 			let color = &bar.color;
+			let width = (bar.width as f32 * bar.scale) as u32;
+			let left = (bar.x as i32 - ((width - bar.width) / 2) as i32).to_u32();
 			draw_rect(
 				&mut self.pixels,
 				self.width,
 				self.height,
-				bar.x,
+				left,
 				bar.y + corner_radius,
-				bar.width,
+				width,
 				(bar.height as i32 - corner_radius as i32).to_u32(),
 				&color,
 			);
@@ -259,9 +279,9 @@ impl BarChart {
 				&mut self.pixels,
 				self.width,
 				self.height,
-				bar.x + corner_radius,
+				left + corner_radius,
 				bar.y,
-				(bar.width as i32 - corner_radius as i32 * 2).to_u32(),
+				(width as i32 - corner_radius as i32 * 2).to_u32(),
 				min(corner_radius, bar.height),
 				&color,
 			);
@@ -270,7 +290,7 @@ impl BarChart {
 				&mut self.pixels,
 				self.width,
 				(self.height as i32 - self.bottom as i32).to_u32(),
-				bar.x + corner_radius,
+				left + corner_radius,
 				bar.y + corner_radius,
 				corner_radius,
 				&color,
@@ -280,7 +300,7 @@ impl BarChart {
 				&mut self.pixels,
 				self.width,
 				(self.height as i32 - self.bottom as i32).to_u32(),
-				((bar.x + bar.width) as i32 - corner_radius as i32).to_u32(),
+				((left + width) as i32 - corner_radius as i32).to_u32(),
 				bar.y + corner_radius,
 				corner_radius,
 				&color,
@@ -309,20 +329,17 @@ impl BarChart {
 		let mut all_animations_done = true;
 
 		for x in 0..self.data.len() {
-			let animation = Animation::new(
-				timestamp,
-				self.start_timestamp,
-				500.0,
-				100.0 * x as f64,
-				0.0,
-				1.0,
-			);
+			let anim_data = BarHeightAnimData {
+				timestamp: self.start_timestamp,
+				scale: AnimationStateData { from: 0.0, to: 1.0 },
+			};
+			let animation = Animation::new(&anim_data, timestamp, 500.0, 100.0 * x as f64);
 
 			if !animation.is_completed() {
 				all_animations_done = false;
 			}
 
-			let height_scale = animation.get_current();
+			let height_scale = animation.get_current().scale;
 
 			let x_pos = (x as f32 * base_width + left as f32).to_u32();
 			let width = unclamped_width.max(self.min_width as f32).to_u32();
@@ -340,8 +357,6 @@ impl BarChart {
 			bar.width = width;
 			bar.height = height;
 
-			let prev_pointer_state = bar.pointer_state.clone();
-
 			if let Some(pointer_x) = pointer_x
 				&& let Some(pointer_y) = pointer_y
 				&& pointer_x >= x_pos
@@ -349,26 +364,57 @@ impl BarChart {
 				&& pointer_y >= y_pos
 				&& pointer_y <= y_pos + height
 			{
-				bar.color = Color {
+				if let PointerState::Hover = bar.pointer_state {
+				} else {
+					bar.pointer_state = PointerState::Hover;
+
+					bar.anim_target = BarHoverAnimationData {
+						timestamp,
+						scale: AnimationStateData {
+							from: bar.scale,
+							to: 1.1,
+						},
+						color_t: AnimationStateData { from: 0.0, to: 1.0 },
+					};
+				}
+			} else {
+				if let PointerState::None = bar.pointer_state {
+				} else {
+					bar.pointer_state = PointerState::None;
+
+					bar.anim_target = BarHoverAnimationData {
+						timestamp,
+						scale: AnimationStateData {
+							from: bar.scale,
+							to: 1.0,
+						},
+						color_t: AnimationStateData { from: 1.0, to: 0.0 },
+					};
+				}
+			}
+
+			let animation = Animation::new(&bar.anim_target, timestamp, 200.0, 0.0);
+
+			if !animation.is_completed() {
+				all_animations_done = false;
+			}
+
+			bar.scale = animation.get_current().scale;
+			bar.color = Color {
+				r: 255,
+				g: 255,
+				b: 255,
+				a: 255,
+			}
+			.lerp(
+				Color {
 					r: 200,
 					g: 200,
 					b: 255,
 					a: 255,
-				};
-				bar.pointer_state = PointerState::Hover;
-			} else {
-				bar.color = Color {
-					r: 255,
-					g: 255,
-					b: 255,
-					a: 255,
-				};
-				bar.pointer_state = PointerState::None;
-			}
-
-			if bar.pointer_state != prev_pointer_state {
-				all_animations_done = false;
-			}
+				},
+				animation.get_current().color_t,
+			);
 		}
 
 		self.is_animating = !all_animations_done;
