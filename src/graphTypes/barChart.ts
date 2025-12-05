@@ -32,6 +32,7 @@ interface BarChartOptions extends GraphRendererOptions {
 	valueAxis?: ValueAxisOptions;
 	minWidth?: number;
 	minHeight?: number;
+	hoverScale?: number;
 }
 
 class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
@@ -73,6 +74,7 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 			options.valueAxis.width,
 			options.valueAxis.smallestScale,
 			options.valueAxis.minPixelDistance,
+			options.hoverScale,
 		);
 	}
 
@@ -171,6 +173,7 @@ export default class BarChart
 			},
 			minWidth: options.minWidth ?? 1,
 			minHeight: options.minHeight ?? 1,
+			hoverScale: options.hoverScale ?? 1.1,
 		};
 	}
 
@@ -191,7 +194,7 @@ export default class BarChart
 	}
 
 	public render() {
-		console.log("render");
+		// console.log("render");
 		this.wasmGraphRenderer.render();
 
 		this.imageData.data.set(this.pixelsArr);

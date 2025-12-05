@@ -26,6 +26,7 @@ impl DataPoint {
 	}
 }
 
+#[derive(Debug)]
 enum PointerState {
 	None,
 	Hover,
@@ -40,6 +41,7 @@ DefineAnimation!(
 
 DefineAnimation!(BarHeightAnimData, CurrentBarHeightAnimData, scale);
 
+#[derive(Debug)]
 struct BarData {
 	title: String,
 	x: u32,
@@ -89,6 +91,8 @@ pub struct BarChart {
 	value_axis_smallest_scale: f32,
 	value_axis_min_pixel_distance: u32,
 
+	hover_scale: f32,
+
 	max_val: f32,
 
 	is_animating: bool,
@@ -116,6 +120,8 @@ impl BarChart {
 		value_axis_width: u32,
 		value_axis_smallest_scale: f32,
 		value_axis_min_pixel_distance: u32,
+
+		hover_scale: f32,
 	) -> BarChart {
 		let size = width * height * 4;
 		let pixels = vec![0; size as usize];
@@ -190,6 +196,8 @@ impl BarChart {
 			value_axis_smallest_scale,
 			value_axis_min_pixel_distance,
 
+			hover_scale,
+
 			max_val,
 			is_animating: true,
 		}
@@ -263,7 +271,8 @@ impl BarChart {
 			let corner_radius = min(self.bar_corner_radius, bar.width / 2);
 			let color = &bar.color;
 			let width = (bar.width as f32 * bar.scale) as u32;
-			let left = (bar.x as i32 - ((width - bar.width) / 2) as i32).to_u32();
+			let left = (bar.x as i32 - ((width as i32 - bar.width as i32) / 2) as i32).to_u32();
+
 			draw_rect(
 				&mut self.pixels,
 				self.width,
@@ -309,10 +318,12 @@ impl BarChart {
 	}
 
 	fn calculate_bars(&mut self, timestamp: f64, pointer_x: Option<u32>, pointer_y: Option<u32>) {
+		let bars_count = self.data.len();
+
 		let mut left = self.left + self.value_axis_width;
 		let mut base_width = (self.width as i32 - left as i32 - self.right as i32 + self.gap as i32)
 			as f32
-			/ (self.data.len() as f32);
+			/ (bars_count as f32);
 
 		let bottom = self.bottom;
 
@@ -323,12 +334,12 @@ impl BarChart {
 			left = (left as i32 + unclamped_width as i32).to_u32();
 			base_width = ((self.width as i32 - left as i32 - self.right as i32 + self.gap as i32) as f32
 				+ unclamped_width)
-				/ (self.data.len() as f32);
+				/ (bars_count as f32);
 		}
 
 		let mut all_animations_done = true;
 
-		for x in 0..self.data.len() {
+		for x in 0..bars_count {
 			let anim_data = BarHeightAnimData {
 				timestamp: self.start_timestamp,
 				scale: AnimationStateData { from: 0.0, to: 1.0 },
@@ -372,7 +383,7 @@ impl BarChart {
 						timestamp,
 						scale: AnimationStateData {
 							from: bar.scale,
-							to: 1.1,
+							to: self.hover_scale,
 						},
 						color_t: AnimationStateData { from: 0.0, to: 1.0 },
 					};

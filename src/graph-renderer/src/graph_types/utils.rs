@@ -3,6 +3,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::utils::NumUtils;
 
+#[derive(Debug)]
 #[wasm_bindgen]
 pub struct Color {
 	pub r: u8,
