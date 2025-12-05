@@ -62,7 +62,7 @@ DefineAnimation!(BarClickAnimData, CurrentBarClickAnimData, color_t);
 #[derive(Debug)]
 struct BarData {
 	title: String,
-	value: f32,
+	_value: f32,
 	x: u32,
 	y: u32,
 	width: u32,
@@ -153,7 +153,7 @@ impl BarChart {
 		for i in 0..data.len() {
 			bars.push(BarData {
 				title: data[i].title.clone(),
-				value: data[i].value,
+				_value: data[i].value,
 				x: 0,
 				y: 0,
 				width: 0,
@@ -438,7 +438,7 @@ impl BarChart {
 				}
 
 				if clicking {
-					log_debug!(bar.value);
+					log_debug!(bar._value);
 					self.toggle_bar_selection_at(x, timestamp);
 				}
 			} else {
