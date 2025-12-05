@@ -84,8 +84,8 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	resize(width: number, height: number) {
 		this.wasmGraph.resize(width, height);
 	}
-	update(timestamp: number, pointer: PointerType) {
-		this.wasmGraph.update(timestamp, pointer?.x, pointer?.y);
+	update(timestamp: number, pointer: PointerType, clicking?: boolean) {
+		this.wasmGraph.update(timestamp, pointer?.x, pointer?.y, clicking ?? false);
 	}
 	render() {
 		this.wasmGraph.render();
@@ -189,8 +189,12 @@ export default class BarChart
 		super._init(memory, wasmGraphRenderer);
 	}
 
-	public update(timestamp: number, pointer: PointerType): void {
-		this.wasmGraphRenderer.update(timestamp, pointer);
+	public update(
+		timestamp: number,
+		pointer: PointerType,
+		clicking?: boolean,
+	): void {
+		this.wasmGraphRenderer.update(timestamp, pointer, clicking);
 	}
 
 	public render() {

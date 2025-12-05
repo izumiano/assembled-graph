@@ -24,7 +24,7 @@ export interface WasmGraphRendererInterop<TGraph> {
 
 	getPixelsPtr(): number;
 	resize(width: number, height: number): void;
-	update(timestamp: number, pointer: PointerType): void;
+	update(timestamp: number, pointer: PointerType, clicking: boolean): void;
 	render(): void;
 	getIsAnimating(): boolean;
 }
@@ -98,7 +98,7 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 
 export interface IGraphRenderer {
 	init(memory: WebAssembly.Memory, timestamp: number): void;
-	update(timestamp: number, pointer: PointerType): void;
+	update(timestamp: number, pointer: PointerType, clicking: boolean): void;
 	render(): void;
 	isAnimating(): boolean;
 }

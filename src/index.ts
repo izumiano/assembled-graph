@@ -37,7 +37,7 @@ export default class GraphManager {
 			if (!renderer.isAnimating()) {
 				return;
 			}
-			renderer.update(timestamp, renderer.pointer);
+			renderer.update(timestamp, renderer.pointer, false);
 			renderer.render();
 		});
 
@@ -58,7 +58,7 @@ export default class GraphManager {
 			IGraphRenderer,
 	>(renderer: TGraphRenderer) {
 		renderer.init(this.initOutput.memory, this.timestamp);
-		renderer.update(this.timestamp, null);
+		renderer.update(this.timestamp, null, false);
 		renderer.render();
 
 		const canvas = renderer.getCanvas();
@@ -67,6 +67,19 @@ export default class GraphManager {
 		this.renderers.push(renderer);
 
 		return renderer;
+	}
+
+	private handleClick(
+		e: MouseEvent,
+		canvas: HTMLCanvasElement,
+		renderer: IGraphRenderer &
+			GraphRenderer<unknown, WasmGraphRendererInterop<unknown>>,
+	) {
+		const rect = canvas.getBoundingClientRect();
+		const mouseX = e.clientX - rect.left;
+		const mouseY = e.clientY - rect.top;
+		renderer.pointer = { x: mouseX, y: mouseY };
+		renderer.update(this.timestamp, renderer.pointer, true);
 	}
 
 	private handleMoveInput(
@@ -79,7 +92,7 @@ export default class GraphManager {
 		const mouseX = e.clientX - rect.left;
 		const mouseY = e.clientY - rect.top;
 		renderer.pointer = { x: mouseX, y: mouseY };
-		renderer.update(this.timestamp, renderer.pointer);
+		renderer.update(this.timestamp, renderer.pointer, false);
 	}
 
 	private handleEndInput(
@@ -87,7 +100,7 @@ export default class GraphManager {
 			GraphRenderer<unknown, WasmGraphRendererInterop<unknown>>,
 	) {
 		renderer.pointer = null;
-		renderer.update(this.timestamp, renderer.pointer);
+		renderer.update(this.timestamp, renderer.pointer, false);
 	}
 
 	private handleInput(
@@ -95,6 +108,10 @@ export default class GraphManager {
 		renderer: IGraphRenderer &
 			GraphRenderer<unknown, WasmGraphRendererInterop<unknown>>,
 	) {
+		canvas.addEventListener("mousedown", (e) =>
+			this.handleClick(e, canvas, renderer),
+		);
+
 		canvas.addEventListener("mousemove", (e) =>
 			this.handleMoveInput(e, canvas, renderer),
 		);
@@ -134,7 +151,9 @@ export default class GraphManager {
 				return;
 			}
 			e.preventDefault();
-			this.handleEndInput(renderer);
+
+			renderer.update(this.timestamp, renderer.pointer, true);
+			renderer.pointer = null;
 		});
 	}
 }
