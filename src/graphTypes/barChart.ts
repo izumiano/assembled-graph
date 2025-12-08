@@ -144,11 +144,17 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	getBarWidthAt(i: number) {
 		return this.wasmGraph.get_bar_width_at(i);
 	}
+	getBarHeightAt(i: number) {
+		return this.wasmGraph.get_bar_height_at(i);
+	}
 	getBarTitleAt(i: number) {
 		return this.wasmGraph.get_bar_title_at(i);
 	}
 	getBarXAt(i: number) {
 		return this.wasmGraph.get_bar_x_at(i);
+	}
+	getBarYAt(i: number) {
+		return this.wasmGraph.get_bar_y_at(i);
 	}
 	getSelectedBarIndex() {
 		return this.wasmGraph.get_selected_bar_index();
@@ -167,6 +173,15 @@ export default class BarChart
 {
 	private options: InternalBarChartOptions;
 	private data: DataPoint[];
+	private onSelectionChange:
+		| ((
+				_: {
+					data: DataPoint;
+					positionInfo: { x: number; y: number; width: number; height: number };
+					index: number;
+				} | null,
+		  ) => void)
+		| undefined;
 
 	private selectedBarIndex: number | undefined;
 
@@ -174,10 +189,18 @@ export default class BarChart
 		canvas: HTMLCanvasElement,
 		data: DataPoint[],
 		options: BarChartOptions,
+		onSelectionChange?: (
+			_: {
+				data: DataPoint;
+				positionInfo: { x: number; y: number; width: number; height: number };
+				index: number;
+			} | null,
+		) => void,
 	) {
 		super(canvas);
 
 		this.data = data;
+		this.onSelectionChange = onSelectionChange;
 		this.options = {
 			backgroundColor: options.backgroundColor ?? {
 				r: 0,
@@ -230,11 +253,24 @@ export default class BarChart
 
 		const selectedBarIndex = this.wasmGraphRenderer.getSelectedBarIndex();
 
+		console.log({ selectedBarIndex, prev: this.selectedBarIndex });
 		if (selectedBarIndex !== this.selectedBarIndex) {
 			this.selectedBarIndex = selectedBarIndex;
 
-			console.log(
-				selectedBarIndex != null ? this.data[selectedBarIndex] : null,
+			this.onSelectionChange?.(
+				selectedBarIndex != null && this.data.length >= selectedBarIndex
+					? {
+							// biome-ignore lint/style/noNonNullAssertion: <we are checking length>
+							data: this.data[selectedBarIndex]!,
+							positionInfo: {
+								x: this.wasmGraphRenderer.getBarXAt(selectedBarIndex),
+								y: this.wasmGraphRenderer.getBarYAt(selectedBarIndex),
+								width: this.wasmGraphRenderer.getBarWidthAt(selectedBarIndex),
+								height: this.wasmGraphRenderer.getBarHeightAt(selectedBarIndex),
+							},
+							index: selectedBarIndex,
+						}
+					: null,
 			);
 		}
 	}
