@@ -1,0 +1,23 @@
+body {
+	margin: 0;
+	width: 100vw;
+	height: 100vh;
+	overflow: hidden;
+}
+
+#graphContainer {
+	position: relative;
+}
+
+#graphInfo {
+	position: absolute;
+	padding: 0.5rem;
+	border-radius: 1rem;
+	border: 2px solid white;
+	color: white;
+	background-color: rgb(100, 100, 255);
+}
+
+.hidden {
+	display: none;
+}

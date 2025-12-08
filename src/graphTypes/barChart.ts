@@ -253,7 +253,6 @@ export default class BarChart
 
 		const selectedBarIndex = this.wasmGraphRenderer.getSelectedBarIndex();
 
-		console.log({ selectedBarIndex, prev: this.selectedBarIndex });
 		if (selectedBarIndex !== this.selectedBarIndex) {
 			this.selectedBarIndex = selectedBarIndex;
 

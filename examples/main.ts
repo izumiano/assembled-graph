@@ -2,6 +2,7 @@ import BarChart from "../dist/graphTypes/barChart.js";
 import GraphManager from "../dist/index.js";
 
 const canvas = document.getElementById("graphCanvas") as HTMLCanvasElement;
+const graphInfoElem = document.getElementById("graphInfo") as HTMLElement;
 
 canvas.width = document.body.clientWidth;
 canvas.height = document.body.clientHeight;
@@ -31,6 +32,25 @@ const graph = new BarChart(
 		minWidth: 5,
 		minHeight: 7,
 		hoverScale: 1.1,
+	},
+	(info) => {
+		if (!info) {
+			graphInfoElem.classList.add("hidden");
+			return;
+		}
+		graphInfoElem.classList.remove("hidden");
+
+		const { data, positionInfo } = info;
+
+		graphInfoElem.innerText = data.title + data.value;
+
+		const rect = graphInfoElem.getBoundingClientRect();
+		let left = positionInfo.x - rect.width;
+		if (left < 0) {
+			left = positionInfo.x + positionInfo.width;
+		}
+		graphInfoElem.style.left = `${left}px`;
+		graphInfoElem.style.top = `${positionInfo.y}px`;
 	},
 );
 graphManager.addGraph(graph);
