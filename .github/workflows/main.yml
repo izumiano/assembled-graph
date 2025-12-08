@@ -31,29 +31,6 @@ jobs:
         uses: jetli/wasm-pack-action@v0.4.0
         with:
           version: "latest"
-      - name: Clippy Check
-        uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-targets --all-features --workspace -- -A dead_code -D warnings # cargo clippy --all-targets --all-features --workspace -- -A dead_code -D warnings
-      - name: Rustfmt Check
-        uses: actions-rust-lang/rustfmt@v1
-      - name: Compile rust to wasm
-        run: npm run compileWasm
-      - run: mkdir -p dist/graph-renderer
-      - run: cp -r src/graph-renderer/pkg dist/graph-renderer
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-      - run: npm ci
-      - run: npm run build
-      - run: npm test
-      - run: mv package.json dist/package.json
-      - uses: actions/upload-artifact@v5
-        with:
-          name: package-artifact
-          path: dist
 
   format-and-lint:
     runs-on: ubuntu-latest
