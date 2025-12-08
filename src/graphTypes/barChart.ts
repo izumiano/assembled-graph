@@ -100,8 +100,6 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	}
 	update(timestamp: number, pointer: PointerType, clicking?: boolean) {
 		this.wasmGraph.update(timestamp, pointer?.x, pointer?.y, clicking ?? false);
-
-		console.log(this.wasmGraph.get_selected_bar_index());
 	}
 	render() {
 		this.wasmGraph.render();
@@ -135,6 +133,9 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	getBarXAt(i: number) {
 		return this.wasmGraph.get_bar_x_at(i);
 	}
+	getSelectedBarIndex() {
+		return this.wasmGraph.get_selected_bar_index();
+	}
 }
 
 type InternalBarChartOptions = Required<
@@ -149,6 +150,8 @@ export default class BarChart
 {
 	private options: InternalBarChartOptions;
 	private data: DataPoint[];
+
+	private selectedBarIndex: number | undefined;
 
 	constructor(
 		canvas: HTMLCanvasElement,
@@ -211,6 +214,16 @@ export default class BarChart
 		clicking?: boolean,
 	): void {
 		this.wasmGraphRenderer.update(timestamp, pointer, clicking);
+
+		const selectedBarIndex = this.wasmGraphRenderer.getSelectedBarIndex();
+
+		if (selectedBarIndex !== this.selectedBarIndex) {
+			this.selectedBarIndex = selectedBarIndex;
+
+			console.log(
+				selectedBarIndex != null ? this.data[selectedBarIndex] : null,
+			);
+		}
 	}
 
 	public render() {
