@@ -25,11 +25,19 @@ jobs:
         with:
           toolchain: 1.91.1
           target: wasm32-unknown-unknown
+          components: clippy, rustfmt
           rust-src-dir: src/graph-renderer
       - name: Install wasm-pack
         uses: jetli/wasm-pack-action@v0.4.0
         with:
           version: "latest"
+      - name: Clippy Check
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features --all-features --workspace -- -A dead_code -D warnings # cargo clippy --all-targets --all-features --workspace -- -A dead_code -D warnings
+      - name: Rustfmt Check
+        uses: actions-rust-lang/rustfmt@v1
       - name: Compile rust to wasm
         run: npm run compileWasm
       - run: mkdir -p dist/graph-renderer
