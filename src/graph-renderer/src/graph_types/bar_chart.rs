@@ -395,6 +395,7 @@ impl BarChart {
 				self.bars[i].selected_state = SelectedState::None { timestamp };
 			}
 		}
+		self.selected_bar_index = None;
 	}
 
 	fn calculate_bars(
