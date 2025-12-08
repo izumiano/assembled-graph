@@ -131,8 +131,8 @@ macro_rules! log_format {
 macro_rules! log {
 	($($x:tt)*) => {
 		#[cfg(debug_assertions)]{{
-			use crate::log_format;
-			use crate::logging::*;
+			use $crate::log_format;
+			use $crate::logging::*;
 			log_format!($($x)*).log();
 		}}
 	}
@@ -142,8 +142,8 @@ macro_rules! log {
 macro_rules! log_debug {
 	($($x:tt)*) => {
 		#[cfg(debug_assertions)]{{
-			use crate::log_format;
-			use crate::logging::*;
+			use $crate::log_format;
+			use $crate::logging::*;
 			log_format!($($x)*).log_debug();
 		}}
 	}

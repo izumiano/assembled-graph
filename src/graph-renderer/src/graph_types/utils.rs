@@ -3,7 +3,15 @@ use wasm_bindgen::prelude::*;
 
 use crate::utils::NumUtils;
 
-#[derive(Debug)]
+pub trait GraphRenderer {
+	fn get_mut_pixels(&mut self) -> &mut Vec<u8>;
+	fn get_width(&self) -> u32;
+	fn get_height(&self) -> u32;
+	fn draw_rect(&mut self, x: u32, y: u32, width: u32, height: u32, color: &Color);
+	fn draw_circle(&mut self, x: u32, y: u32, radius: u32, color: &Color);
+}
+
+#[derive(Debug, Clone)]
 #[wasm_bindgen]
 pub struct Color {
 	pub r: u8,
@@ -16,12 +24,7 @@ pub struct Color {
 impl Color {
 	#[wasm_bindgen(constructor)]
 	pub fn new(r: u8, g: u8, b: u8, a: u8) -> Color {
-		Color {
-			r: r,
-			g: g,
-			b: b,
-			a: a,
-		}
+		Color { r, g, b, a }
 	}
 
 	pub fn lerp(&self, other: Color, t: f32) -> Color {
@@ -37,17 +40,20 @@ impl Color {
 }
 
 pub fn draw_rect(
-	pixels: &mut Vec<u8>,
-	canvas_width: u32,
-	canvas_height: u32,
+	renderer: &mut dyn GraphRenderer,
 	x: u32,
 	y: u32,
 	width: u32,
 	height: u32,
 	color: &Color,
 ) {
+	let canvas_width = renderer.get_width();
+	let canvas_height = renderer.get_height();
+
 	let width = min(width as i32, canvas_width as i32 - x as i32).to_u32();
 	let height = min(height as i32, canvas_height as i32 - y as i32).to_u32();
+
+	let pixels = renderer.get_mut_pixels();
 
 	for curr_y in y..(height + y) {
 		for curr_x in x..(width + x) {
@@ -60,8 +66,23 @@ pub fn draw_rect(
 	}
 }
 
-pub fn draw_circle(
-	pixels: &mut Vec<u8>,
+pub fn draw_circle(renderer: &mut dyn GraphRenderer, x: u32, y: u32, radius: u32, color: &Color) {
+	let canvas_width = renderer.get_width();
+	let canvas_height = renderer.get_height();
+
+	draw_circle_direct(
+		renderer.get_mut_pixels(),
+		canvas_width,
+		canvas_height,
+		x,
+		y,
+		radius,
+		color,
+	);
+}
+
+pub fn draw_circle_direct(
+	pixels: &mut [u8],
 	canvas_width: u32,
 	canvas_height: u32,
 	x: u32,
@@ -92,12 +113,7 @@ pub fn draw_circle(
 	}
 }
 
-pub fn clear_background(
-	pixels: &mut Vec<u8>,
-	canvas_width: u32,
-	canvas_height: u32,
-	color: &Color,
-) {
+pub fn clear_background(pixels: &mut [u8], canvas_width: u32, canvas_height: u32, color: &Color) {
 	for y in 0..canvas_height {
 		for x in 0..canvas_width {
 			let i = ((y * canvas_width + x) * 4) as usize;

@@ -1,7 +1,11 @@
 import {
+	BarChartLayout as WasmBarChartLayout,
+	BarLayout as WasmBarLayout,
+	ValueAxisLayout as WasmValueAxisLayout,
 	BarChart as WasmBarChart,
 	Color as WasmColor,
 	DataPoint as WasmDataPoint,
+	Positioning as WasmPositioning,
 } from "../graph-renderer/pkg/graph_renderer.js";
 import { fillTextWithMaxWidth, roundToNearestMultiple } from "../utils.js";
 
@@ -63,17 +67,27 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 				options.backgroundColor.b,
 				options.backgroundColor.a ?? 255,
 			),
-			options.positioning.bottom + options.titleFontSize,
-			options.positioning.top,
-			options.positioning.left,
-			options.positioning.right,
-			options.gap,
-			options.barCornerRadius,
-			options.minWidth,
-			options.minHeight,
-			options.valueAxis.width,
-			options.valueAxis.smallestScale,
-			options.valueAxis.minPixelDistance,
+
+			new WasmBarChartLayout(
+				new WasmPositioning(
+					options.positioning.bottom + options.titleFontSize,
+					options.positioning.top,
+					options.positioning.left,
+					options.positioning.right,
+				),
+				new WasmBarLayout(
+					options.gap,
+					options.barCornerRadius,
+					options.minWidth,
+					options.minHeight,
+				),
+				new WasmValueAxisLayout(
+					options.valueAxis.width,
+					options.valueAxis.smallestScale,
+					options.valueAxis.minPixelDistance,
+				),
+			),
+
 			options.hoverScale,
 		);
 	}
@@ -86,6 +100,8 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	}
 	update(timestamp: number, pointer: PointerType, clicking?: boolean) {
 		this.wasmGraph.update(timestamp, pointer?.x, pointer?.y, clicking ?? false);
+
+		console.log(this.wasmGraph.get_selected_bar_index());
 	}
 	render() {
 		this.wasmGraph.render();

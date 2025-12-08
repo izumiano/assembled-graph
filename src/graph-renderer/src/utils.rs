@@ -17,8 +17,7 @@ impl NumUtils for f32 {
 
 		let rounded_log = log_val.ceil();
 
-		let result = 2.0f32.powf(rounded_log);
-		return result;
+		2.0f32.powf(rounded_log)
 	}
 }
 impl NumUtils for i32 {

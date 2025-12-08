@@ -1,14 +1,14 @@
+use proc_macros::*;
 use std::cmp::max;
 use std::cmp::min;
 use wasm_bindgen::prelude::*;
 
+use crate::DefineAnimation;
 use crate::animation::Animation;
 use crate::animation::AnimationData;
 use crate::animation::AnimationStateData;
 use crate::graph_types::utils::*;
-use crate::log_debug;
 use crate::utils::NumUtils;
-use crate::DefineAnimation;
 
 #[wasm_bindgen]
 pub struct DataPoint {
@@ -20,10 +20,7 @@ pub struct DataPoint {
 impl DataPoint {
 	#[wasm_bindgen(constructor)]
 	pub fn new(title: String, value: f32) -> DataPoint {
-		DataPoint {
-			title: title,
-			value,
-		}
+		DataPoint { title, value }
 	}
 }
 
@@ -62,7 +59,7 @@ DefineAnimation!(BarClickAnimData, CurrentBarClickAnimData, color_t);
 #[derive(Debug)]
 struct BarData {
 	title: String,
-	_value: f32,
+	// _value: f32,
 	x: u32,
 	y: u32,
 	width: u32,
@@ -82,6 +79,37 @@ struct ScaleLineObject {
 	height: u32,
 	intensity: u8,
 	value: f32,
+}
+
+#[wasm_struct]
+pub struct Positioning {
+	bottom: u32,
+	top: u32,
+	left: u32,
+	right: u32,
+}
+
+#[wasm_struct]
+pub struct BarLayout {
+	gap: u32,
+	bar_corner_radius: u32,
+	min_width: u32,
+	min_height: u32,
+}
+
+#[wasm_struct]
+pub struct ValueAxisLayout {
+	value_axis_width: u32,
+	value_axis_smallest_scale: f32,
+	value_axis_min_pixel_distance: u32,
+}
+
+#[wasm_struct]
+pub struct BarChartLayout {
+	positioning: Positioning,
+
+	bar_layout: BarLayout,
+	value_axis_layout: ValueAxisLayout,
 }
 
 #[wasm_bindgen]
@@ -116,6 +144,7 @@ pub struct BarChart {
 	max_val: f32,
 
 	is_animating: bool,
+	selected_bar_index: Option<usize>,
 }
 
 #[wasm_bindgen]
@@ -128,18 +157,7 @@ impl BarChart {
 		height: u32,
 		background_color: Color,
 
-		bottom: u32,
-		top: u32,
-		left: u32,
-		right: u32,
-		gap: u32,
-		bar_corner_radius: u32,
-		min_width: u32,
-		min_height: u32,
-
-		value_axis_width: u32,
-		value_axis_smallest_scale: f32,
-		value_axis_min_pixel_distance: u32,
+		layout: BarChartLayout,
 
 		hover_scale: f32,
 	) -> BarChart {
@@ -150,10 +168,9 @@ impl BarChart {
 		let scale_line_count = 0;
 
 		let mut max_val = 0.0;
-		for i in 0..data.len() {
+		for data_point in &data {
 			bars.push(BarData {
-				title: data[i].title.clone(),
-				_value: data[i].value,
+				title: data_point.title.clone(),
 				x: 0,
 				y: 0,
 				width: 0,
@@ -176,7 +193,7 @@ impl BarChart {
 				},
 			});
 
-			max_val = data[i].value.max(max_val);
+			max_val = data_point.value.max(max_val);
 		}
 
 		for _ in 0..100 {
@@ -206,24 +223,25 @@ impl BarChart {
 			scale_lines,
 			scale_line_count,
 
-			bottom,
-			top,
-			left,
-			right,
+			bottom: layout.positioning.bottom,
+			top: layout.positioning.top,
+			left: layout.positioning.left,
+			right: layout.positioning.right,
 
-			gap,
-			bar_corner_radius,
-			min_width,
-			min_height,
+			gap: layout.bar_layout.gap,
+			bar_corner_radius: layout.bar_layout.bar_corner_radius,
+			min_width: layout.bar_layout.min_width,
+			min_height: layout.bar_layout.min_height,
 
-			value_axis_width,
-			value_axis_smallest_scale,
-			value_axis_min_pixel_distance,
+			value_axis_width: layout.value_axis_layout.value_axis_width,
+			value_axis_smallest_scale: layout.value_axis_layout.value_axis_smallest_scale,
+			value_axis_min_pixel_distance: layout.value_axis_layout.value_axis_min_pixel_distance,
 
 			hover_scale,
 
 			max_val,
 			is_animating: true,
+			selected_bar_index: None,
 		}
 	}
 
@@ -290,51 +308,52 @@ impl BarChart {
 		self.is_animating
 	}
 
+	pub fn get_selected_bar_index(&self) -> Option<usize> {
+		self.selected_bar_index
+	}
+
 	fn draw_bars(&mut self) {
-		for bar in &self.bars {
+		for i in 0..self.bars.len() {
+			let bar = &self.bars[i];
 			let corner_radius = min(self.bar_corner_radius, bar.width / 2);
-			let color = &bar.color;
+			let color = bar.color.clone();
 			let width = (bar.width as f32 * bar.scale) as u32;
-			let left = (bar.x as i32 - ((width as i32 - bar.width as i32) / 2) as i32).to_u32();
+			let left = (bar.x as i32 - (width as i32 - bar.width as i32) / 2).to_u32();
+			let bar_y = bar.y;
+			let bar_height = bar.height;
 
-			draw_rect(
-				&mut self.pixels,
-				self.width,
-				self.height,
+			self.draw_rect(
 				left,
-				bar.y + corner_radius,
+				bar_y + corner_radius,
 				width,
-				(bar.height as i32 - corner_radius as i32).to_u32(),
+				(bar_height as i32 - corner_radius as i32).to_u32(),
 				&color,
 			);
 
-			draw_rect(
-				&mut self.pixels,
-				self.width,
-				self.height,
+			self.draw_rect(
 				left + corner_radius,
-				bar.y,
+				bar_y,
 				(width as i32 - corner_radius as i32 * 2).to_u32(),
-				min(corner_radius, bar.height),
+				min(corner_radius, bar_height),
 				&color,
 			);
 
-			draw_circle(
+			draw_circle_direct(
 				&mut self.pixels,
 				self.width,
 				(self.height as i32 - self.bottom as i32).to_u32(),
 				left + corner_radius,
-				bar.y + corner_radius,
+				bar_y + corner_radius,
 				corner_radius,
 				&color,
 			);
 
-			draw_circle(
+			draw_circle_direct(
 				&mut self.pixels,
 				self.width,
 				(self.height as i32 - self.bottom as i32).to_u32(),
 				((left + width) as i32 - corner_radius as i32).to_u32(),
-				bar.y + corner_radius,
+				bar_y + corner_radius,
 				corner_radius,
 				&color,
 			);
@@ -348,14 +367,14 @@ impl BarChart {
 			if selected {
 				if let SelectedState::Selected { timestamp: _ } = self.bars[i].selected_state {
 					self.bars[i].selected_state = SelectedState::None { timestamp };
+					self.selected_bar_index = None;
 				} else {
 					self.bars[i].selected_state = SelectedState::Selected { timestamp };
+					self.selected_bar_index = Some(index);
 				}
+			} else if let SelectedState::None { timestamp: _ } = self.bars[i].selected_state {
 			} else {
-				if let SelectedState::None { timestamp: _ } = self.bars[i].selected_state {
-				} else {
-					self.bars[i].selected_state = SelectedState::None { timestamp };
-				}
+				self.bars[i].selected_state = SelectedState::None { timestamp };
 			}
 		}
 	}
@@ -438,23 +457,20 @@ impl BarChart {
 				}
 
 				if clicking {
-					log_debug!(bar._value);
 					self.toggle_bar_selection_at(x, timestamp);
 				}
+			} else if let PointerState::None = bar.pointer_state {
 			} else {
-				if let PointerState::None = bar.pointer_state {
-				} else {
-					bar.pointer_state = PointerState::None;
+				bar.pointer_state = PointerState::None;
 
-					bar.hover_anim = BarHoverAnimationData {
-						timestamp,
-						scale: AnimationStateData {
-							from: bar.scale,
-							to: 1.0,
-						},
-						color_t: AnimationStateData { from: 1.0, to: 0.0 },
-					};
-				}
+				bar.hover_anim = BarHoverAnimationData {
+					timestamp,
+					scale: AnimationStateData {
+						from: bar.scale,
+						to: 1.0,
+					},
+					color_t: AnimationStateData { from: 1.0, to: 0.0 },
+				};
 			}
 
 			let bar = &mut self.bars[x];
@@ -512,10 +528,7 @@ impl BarChart {
 	fn draw_scale_lines(&mut self) {
 		for i in 0..self.scale_line_count {
 			let scale_line = &self.scale_lines[i as usize];
-			draw_rect(
-				&mut self.pixels,
-				self.width,
-				self.height,
+			self.draw_rect(
 				scale_line.x,
 				scale_line.y,
 				scale_line.width,
@@ -547,13 +560,15 @@ impl BarChart {
 			pixel_distance *= mult as f32;
 		}
 
-		let mut line_count = (height / pixel_distance).to_u32() + 1;
+		let line_count = (height / pixel_distance).to_u32() + 1;
+		let mut success_line_count = line_count;
 		for i in 1..line_count {
 			let total_pixel_dist = pixel_distance * i as f32;
+
 			if (self.height as f32 - self.bottom as f32 - total_pixel_dist - self.top as f32)
 				< min_pixel_dist * (2.0 / 3.0)
 			{
-				line_count -= 1;
+				success_line_count -= 1;
 				continue;
 			}
 
@@ -583,7 +598,7 @@ impl BarChart {
 		scale_line.intensity = 200;
 		scale_line.value = self.max_val;
 
-		let scale_line = &mut self.scale_lines[line_count as usize];
+		let scale_line = &mut self.scale_lines[success_line_count as usize];
 		scale_line.x = x_offset;
 		scale_line.y = (self.height as i32 - self.bottom as i32 - thickness as i32).to_u32();
 		scale_line.width = (self.width as i32 - x_offset as i32).to_u32();
@@ -591,7 +606,7 @@ impl BarChart {
 		scale_line.intensity = 200;
 		scale_line.value = 0.0;
 
-		self.scale_line_count = line_count + 1;
+		self.scale_line_count = success_line_count + 1;
 	}
 
 	pub fn update(
@@ -616,5 +631,23 @@ impl BarChart {
 		self.draw_scale_lines();
 
 		self.draw_bars();
+	}
+}
+
+impl GraphRenderer for BarChart {
+	fn get_mut_pixels(&mut self) -> &mut Vec<u8> {
+		&mut self.pixels
+	}
+	fn get_width(&self) -> u32 {
+		self.width
+	}
+	fn get_height(&self) -> u32 {
+		self.height
+	}
+	fn draw_rect(&mut self, x: u32, y: u32, width: u32, height: u32, color: &Color) {
+		draw_rect(self, x, y, width, height, color);
+	}
+	fn draw_circle(&mut self, x: u32, y: u32, radius: u32, color: &Color) {
+		draw_circle(self, x, y, radius, color);
 	}
 }
