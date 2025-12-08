@@ -10,18 +10,10 @@ use crate::animation::AnimationStateData;
 use crate::graph_types::utils::*;
 use crate::utils::NumUtils;
 
-#[wasm_bindgen]
+#[wasm_struct]
 pub struct DataPoint {
 	title: String,
 	value: f32,
-}
-
-#[wasm_bindgen]
-impl DataPoint {
-	#[wasm_bindgen(constructor)]
-	pub fn new(title: String, value: f32) -> DataPoint {
-		DataPoint { title, value }
-	}
 }
 
 #[derive(Debug)]
