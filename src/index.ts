@@ -122,7 +122,7 @@ export default class GraphManager {
 		renderer: IGraphRenderer &
 			GraphRenderer<unknown, WasmGraphRendererInterop<unknown>>,
 	) {
-		renderer.pointer.clickingState = "None";
+		renderer.pointer = { x: -1, y: -1, clickingState: "None" };
 		renderer.update(this.timestamp);
 	}
 
@@ -144,6 +144,7 @@ export default class GraphManager {
 		});
 
 		canvas.addEventListener("mouseleave", () => {
+			console.log("leave");
 			this.handleCancelInput(renderer);
 		});
 
