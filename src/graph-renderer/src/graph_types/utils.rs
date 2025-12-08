@@ -8,6 +8,7 @@ pub trait GraphRenderer {
 	fn get_width(&self) -> u32;
 	fn get_height(&self) -> u32;
 	fn draw_rect(&mut self, x: u32, y: u32, width: u32, height: u32, color: &Color);
+	#[allow(dead_code)]
 	fn draw_circle(&mut self, x: u32, y: u32, radius: u32, color: &Color);
 }
 
@@ -66,6 +67,7 @@ pub fn draw_rect(
 	}
 }
 
+#[allow(dead_code)]
 pub fn draw_circle(renderer: &mut dyn GraphRenderer, x: u32, y: u32, radius: u32, color: &Color) {
 	let canvas_width = renderer.get_width();
 	let canvas_height = renderer.get_height();

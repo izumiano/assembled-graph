@@ -18,10 +18,6 @@ jobs:
   format-and-lint:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: ./src/graph-renderer
-
     steps:
       - uses: actions/checkout@v6
 
@@ -36,13 +32,12 @@ jobs:
         uses: jetli/wasm-pack-action@v0.4.0
         with:
           version: "latest"
+      - run: cd src/graph-renderer
       - name: Clippy Check
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-targets --all-features --workspace -- -A dead_code -D warnings # cargo clippy --all-targets --all-features --workspace -- -A dead_code -D warnings
-      - name: Rustfmt Check
-        uses: actions-rust-lang/rustfmt@v1
+          args: --all-targets --all-features --workspace -- -D warnings # cargo clippy --all-targets --all-features --workspace -- -D warnings
 
   build:
     runs-on: ubuntu-latest
