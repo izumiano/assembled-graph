@@ -37,6 +37,6 @@ graphManager.addGraph(graph);
 
 window.onresize = () => {
 	graph.resize(document.body.clientWidth, document.body.clientHeight);
-	graph.update(graphManager.getTimestamp(), graph.pointer);
+	graph.update(graphManager.getTimestamp());
 	graph.render();
 };

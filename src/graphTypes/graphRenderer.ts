@@ -1,3 +1,5 @@
+import type { ClickingState } from "../index.js";
+
 interface Color {
 	r: number;
 	g: number;
@@ -24,7 +26,11 @@ export interface WasmGraphRendererInterop<TGraph> {
 
 	getPixelsPtr(): number;
 	resize(width: number, height: number): void;
-	update(timestamp: number, pointer: PointerType, clicking: boolean): void;
+	update(
+		timestamp: number,
+		pointer: PointerType,
+		clickingState: ClickingState,
+	): void;
 	render(): void;
 	getIsAnimating(): boolean;
 }
@@ -32,7 +38,8 @@ export interface WasmGraphRendererInterop<TGraph> {
 export type PointerType = {
 	x: number;
 	y: number;
-} | null;
+	clickingState: ClickingState;
+};
 
 export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 	protected canvas: HTMLCanvasElement;
@@ -60,7 +67,7 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 		this.width = canvas.width;
 		this.height = canvas.height;
 		this.imageData = new ImageData(this.width, this.height);
-		this.pointer = null;
+		this.pointer = { x: -1, y: -1, clickingState: "None" };
 	}
 
 	protected _init(memory: WebAssembly.Memory, wasmGraphRenderer: WasmInterop) {
@@ -98,7 +105,7 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 
 export interface IGraphRenderer {
 	init(memory: WebAssembly.Memory, timestamp: number): void;
-	update(timestamp: number, pointer: PointerType, clicking: boolean): void;
+	update(timestamp: number): void;
 	render(): void;
 	isAnimating(): boolean;
 }

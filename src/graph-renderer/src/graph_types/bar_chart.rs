@@ -8,6 +8,7 @@ use crate::animation::Animation;
 use crate::animation::AnimationData;
 use crate::animation::AnimationStateData;
 use crate::graph_types::utils::*;
+use crate::log;
 use crate::utils::NumUtils;
 
 #[wasm_struct]
@@ -37,16 +38,12 @@ impl SelectedState {
 	}
 }
 
-DefineAnimation!(
-	BarHoverAnimationData,
-	CurrentBarHoverAnimData,
-	scale,
-	color_t
-);
+DefineAnimation!(BarHoverAnimationData, CurrentBarHoverAnimData, scale);
 
 DefineAnimation!(BarHeightAnimData, CurrentBarHeightAnimData, scale);
 
-DefineAnimation!(BarClickAnimData, CurrentBarClickAnimData, color_t);
+DefineAnimation!(SelectBarAnimData, CurrentSelectBarAnimData, color_t);
+DefineAnimation!(ClickingBarAnimData, CurrentClickingBarAnimData, color_t);
 
 #[derive(Debug)]
 struct BarData {
@@ -57,11 +54,14 @@ struct BarData {
 	width: u32,
 	height: u32,
 	scale: f32,
+	color_t: f32,
 	color: Color,
 	pointer_state: PointerState,
 	selected_state: SelectedState,
 
 	hover_anim: BarHoverAnimationData,
+	clicking_state: ClickingState,
+	clicking_bar_anim: ClickingBarAnimData,
 }
 
 struct ScaleLineObject {
@@ -102,6 +102,14 @@ pub struct BarChartLayout {
 
 	bar_layout: BarLayout,
 	value_axis_layout: ValueAxisLayout,
+}
+
+#[wasm_bindgen]
+#[derive(Debug, Clone)]
+pub enum ClickingState {
+	None,
+	Holding,
+	JustReleased,
 }
 
 #[wasm_bindgen]
@@ -168,6 +176,7 @@ impl BarChart {
 				width: 0,
 				height: 0,
 				scale: 1.0,
+				color_t: 0.,
 				color: Color {
 					r: 255,
 					g: 255,
@@ -181,7 +190,11 @@ impl BarChart {
 				hover_anim: BarHoverAnimationData {
 					timestamp: start_timestamp,
 					scale: AnimationStateData { from: 1.0, to: 1.0 },
-					color_t: AnimationStateData { from: 0.0, to: 0.0 },
+				},
+				clicking_state: ClickingState::None,
+				clicking_bar_anim: ClickingBarAnimData {
+					timestamp: start_timestamp,
+					color_t: AnimationStateData { from: 0., to: 0. },
 				},
 			});
 
@@ -389,7 +402,7 @@ impl BarChart {
 		timestamp: f64,
 		pointer_x: Option<u32>,
 		pointer_y: Option<u32>,
-		clicking: bool,
+		clicking_state: ClickingState,
 	) {
 		let bars_count = self.data.len();
 
@@ -458,13 +471,37 @@ impl BarChart {
 							from: bar.scale,
 							to: self.hover_scale,
 						},
-						color_t: AnimationStateData { from: 0.0, to: 1.0 },
 					};
 				}
 
-				if clicking {
-					self.toggle_bar_selection_at(x, timestamp);
-					any_bar_was_clicked = true;
+				match clicking_state {
+					ClickingState::Holding => {
+						if let ClickingState::Holding = bar.clicking_state {
+						} else {
+							bar.clicking_bar_anim = ClickingBarAnimData {
+								timestamp,
+								color_t: AnimationStateData {
+									from: bar.color_t,
+									to: 0.5,
+								},
+							};
+							bar.clicking_state = ClickingState::Holding;
+						}
+					}
+					ClickingState::JustReleased => {
+						bar.clicking_bar_anim = ClickingBarAnimData {
+							timestamp,
+							color_t: AnimationStateData {
+								from: bar.color_t,
+								to: 0.,
+							},
+						};
+						bar.clicking_state = ClickingState::JustReleased;
+
+						self.toggle_bar_selection_at(x, timestamp);
+						any_bar_was_clicked = true;
+					}
+					_ => {}
 				}
 			} else if let PointerState::None = bar.pointer_state {
 			} else {
@@ -476,8 +513,15 @@ impl BarChart {
 						from: bar.scale,
 						to: 1.0,
 					},
-					color_t: AnimationStateData { from: 1.0, to: 0.0 },
 				};
+				bar.clicking_bar_anim = ClickingBarAnimData {
+					timestamp,
+					color_t: AnimationStateData {
+						from: bar.color_t,
+						to: 0.,
+					},
+				};
+				bar.clicking_state = ClickingState::None;
 			}
 
 			let bar = &mut self.bars[x];
@@ -489,6 +533,16 @@ impl BarChart {
 			}
 
 			bar.scale = animation.get_current().scale;
+
+			let anim_data = SelectBarAnimData {
+				color_t: match bar.selected_state {
+					SelectedState::None { timestamp: _ } => AnimationStateData { from: 1., to: 0. },
+					SelectedState::Selected { timestamp: _ } => AnimationStateData { from: 0., to: 1. },
+				},
+				timestamp: bar.selected_state.get_timestamp(),
+			};
+			let animation = Animation::new(&anim_data, timestamp, 200.0, 0.0);
+
 			bar.color = Color {
 				r: 255,
 				g: 255,
@@ -496,25 +550,6 @@ impl BarChart {
 				a: 255,
 			}
 			.lerp(
-				Color {
-					r: 200,
-					g: 200,
-					b: 200,
-					a: 255,
-				},
-				animation.get_current().color_t,
-			);
-
-			let anim_data = BarClickAnimData {
-				color_t: match bar.selected_state {
-					SelectedState::None { timestamp: _ } => AnimationStateData { from: 0.5, to: 0.0 },
-					SelectedState::Selected { timestamp: _ } => AnimationStateData { from: 0.0, to: 0.5 },
-				},
-				timestamp: bar.selected_state.get_timestamp(),
-			};
-			let animation = Animation::new(&anim_data, timestamp, 200.0, 0.0);
-
-			bar.color = bar.color.lerp(
 				Color {
 					r: 100,
 					g: 100,
@@ -527,9 +562,29 @@ impl BarChart {
 			if !animation.is_completed() {
 				all_animations_done = false;
 			}
+
+			let animation = Animation::new(&bar.clicking_bar_anim, timestamp, 200.0, 0.0);
+
+			if !animation.is_completed() {
+				all_animations_done = false;
+			}
+
+			bar.color_t = animation.get_current().color_t;
+
+			bar.color = bar.color.lerp(
+				Color {
+					r: 150,
+					g: 150,
+					b: 150,
+					a: 255,
+				},
+				bar.color_t,
+			);
+
+			log!(bar.color_t);
 		}
 
-		if clicking && !any_bar_was_clicked {
+		if matches!(clicking_state, ClickingState::JustReleased) && !any_bar_was_clicked {
 			self.deselect_bars(timestamp);
 			all_animations_done = false;
 		}
@@ -626,10 +681,10 @@ impl BarChart {
 		timestamp: f64,
 		pointer_x: Option<u32>,
 		pointer_y: Option<u32>,
-		clicking: bool,
+		clicking_state: ClickingState,
 	) {
 		self.calculate_scale_lines();
-		self.calculate_bars(timestamp, pointer_x, pointer_y, clicking);
+		self.calculate_bars(timestamp, pointer_x, pointer_y, clicking_state);
 	}
 
 	pub fn render(&mut self) {

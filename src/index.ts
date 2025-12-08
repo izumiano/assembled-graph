@@ -6,6 +6,8 @@ import type {
 } from "./graphTypes/graphRenderer.js";
 import { sleepFor } from "./utils.js";
 
+export type ClickingState = "None" | "Holding" | "JustReleased";
+
 export default class GraphManager {
 	private initOutput: InitOutput;
 	private renderers: (IGraphRenderer &
@@ -13,8 +15,6 @@ export default class GraphManager {
 	private timestamp!: number;
 
 	private pointerStart: {
-		x: number;
-		y: number;
 		touchId: number | undefined;
 	} | null = null;
 
@@ -43,7 +43,7 @@ export default class GraphManager {
 			if (!renderer.isAnimating()) {
 				return;
 			}
-			renderer.update(timestamp, renderer.pointer, false);
+			renderer.update(timestamp);
 			renderer.render();
 		});
 
@@ -64,7 +64,7 @@ export default class GraphManager {
 			IGraphRenderer,
 	>(renderer: TGraphRenderer) {
 		renderer.init(this.initOutput.memory, this.timestamp);
-		renderer.update(this.timestamp, null, false);
+		renderer.update(this.timestamp);
 		renderer.render();
 
 		const canvas = renderer.getCanvas();
@@ -73,18 +73,6 @@ export default class GraphManager {
 		this.renderers.push(renderer);
 
 		return renderer;
-	}
-
-	private allowClick(e: MouseEvent | Touch) {
-		if (!this.pointerStart) {
-			return false;
-		}
-
-		const x_delta = (e.clientX - this.pointerStart.x) / window.innerWidth;
-		const y_delta = (e.clientY - this.pointerStart.y) / window.innerHeight;
-		const dist2 = x_delta * x_delta + y_delta * y_delta;
-
-		return dist2 < 1 / 100;
 	}
 
 	private handleClick(
@@ -97,9 +85,9 @@ export default class GraphManager {
 		const rect = canvas.getBoundingClientRect();
 		const mouseX = e.clientX - rect.left;
 		const mouseY = e.clientY - rect.top;
-		renderer.pointer = { x: mouseX, y: mouseY };
-		this.pointerStart = { x: mouseX, y: mouseY, touchId };
-		renderer.update(this.timestamp, renderer.pointer, false);
+		renderer.pointer = { x: mouseX, y: mouseY, clickingState: "Holding" };
+		this.pointerStart = { touchId };
+		renderer.update(this.timestamp);
 	}
 
 	private handleMoveInput(
@@ -111,22 +99,22 @@ export default class GraphManager {
 		const rect = canvas.getBoundingClientRect();
 		const mouseX = e.clientX - rect.left;
 		const mouseY = e.clientY - rect.top;
-		renderer.pointer = { x: mouseX, y: mouseY };
+		renderer.pointer = {
+			x: mouseX,
+			y: mouseY,
+			clickingState: this.pointerStart ? "Holding" : "None",
+		};
 
-		if (this.pointerStart && !this.allowClick(e)) {
-			renderer.pointer = null;
-		}
-
-		renderer.update(this.timestamp, renderer.pointer, false);
+		renderer.update(this.timestamp);
 	}
 
 	private handleEndInput(
-		e: MouseEvent | Touch,
 		renderer: IGraphRenderer &
 			GraphRenderer<unknown, WasmGraphRendererInterop<unknown>>,
 	) {
-		const isClick = this.allowClick(e);
-		renderer.update(this.timestamp, isClick ? renderer.pointer : null, isClick);
+		renderer.pointer.clickingState = "JustReleased";
+		renderer.update(this.timestamp);
+		renderer.pointer.clickingState = "None";
 		this.pointerStart = null;
 	}
 
@@ -134,8 +122,8 @@ export default class GraphManager {
 		renderer: IGraphRenderer &
 			GraphRenderer<unknown, WasmGraphRendererInterop<unknown>>,
 	) {
-		renderer.pointer = null;
-		renderer.update(this.timestamp, renderer.pointer, true);
+		renderer.pointer.clickingState = "None";
+		renderer.update(this.timestamp);
 	}
 
 	private handleInput(
@@ -151,8 +139,8 @@ export default class GraphManager {
 			this.handleMoveInput(e, canvas, renderer),
 		);
 
-		canvas.addEventListener("mouseup", (e) => {
-			this.handleEndInput(e, renderer);
+		canvas.addEventListener("mouseup", () => {
+			this.handleEndInput(renderer);
 		});
 
 		canvas.addEventListener("mouseleave", () => {
@@ -182,8 +170,8 @@ export default class GraphManager {
 				return;
 			}
 			e.preventDefault();
-			renderer.pointer = null;
-			renderer.update(this.timestamp, renderer.pointer, false);
+			renderer.pointer = { x: -1, y: -1, clickingState: "None" };
+			renderer.update(this.timestamp);
 		});
 
 		canvas.addEventListener("touchend", (e) => {
@@ -191,8 +179,8 @@ export default class GraphManager {
 
 			for (const touch of e.changedTouches) {
 				if (touch.identifier === this.pointerStart?.touchId) {
-					this.handleEndInput(touch, renderer);
-					renderer.pointer = null;
+					this.handleEndInput(renderer);
+					renderer.pointer = { x: -1, y: -1, clickingState: "None" };
 				}
 			}
 		});

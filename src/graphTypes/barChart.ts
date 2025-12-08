@@ -1,11 +1,12 @@
 import {
+	BarChart as WasmBarChart,
 	BarChartLayout as WasmBarChartLayout,
 	BarLayout as WasmBarLayout,
-	ValueAxisLayout as WasmValueAxisLayout,
-	BarChart as WasmBarChart,
+	ClickingState as WasmClickingState,
 	Color as WasmColor,
 	DataPoint as WasmDataPoint,
 	Positioning as WasmPositioning,
+	ValueAxisLayout as WasmValueAxisLayout,
 } from "../graph-renderer/pkg/graph_renderer.js";
 import { fillTextWithMaxWidth, roundToNearestMultiple } from "../utils.js";
 
@@ -98,8 +99,24 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	resize(width: number, height: number) {
 		this.wasmGraph.resize(width, height);
 	}
-	update(timestamp: number, pointer: PointerType, clicking?: boolean) {
-		this.wasmGraph.update(timestamp, pointer?.x, pointer?.y, clicking ?? false);
+	update(timestamp: number, pointer: PointerType) {
+		let clickingState: WasmClickingState;
+
+		switch (pointer.clickingState) {
+			case "None":
+				clickingState = WasmClickingState.None;
+				break;
+			case "Holding":
+				clickingState = WasmClickingState.Holding;
+				break;
+			case "JustReleased":
+				clickingState = WasmClickingState.JustReleased;
+				break;
+			default:
+				clickingState = WasmClickingState.None;
+		}
+
+		this.wasmGraph.update(timestamp, pointer?.x, pointer?.y, clickingState);
 	}
 	render() {
 		this.wasmGraph.render();
@@ -208,12 +225,8 @@ export default class BarChart
 		super._init(memory, wasmGraphRenderer);
 	}
 
-	public update(
-		timestamp: number,
-		pointer: PointerType,
-		clicking?: boolean,
-	): void {
-		this.wasmGraphRenderer.update(timestamp, pointer, clicking);
+	public update(timestamp: number): void {
+		this.wasmGraphRenderer.update(timestamp, this.pointer);
 
 		const selectedBarIndex = this.wasmGraphRenderer.getSelectedBarIndex();
 
