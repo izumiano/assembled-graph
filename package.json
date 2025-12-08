@@ -12,6 +12,7 @@
 		"compileWasmDev": "cd src/graph-renderer && wasm-pack build --target web --dev",
 		"lintWasm": "cd src/graph-renderer && cargo clippy --all-targets --all-features --workspace -- -D warnings",
 		"lint": "biome check",
+		"biomeFix": "biome check --write",
 		"test": "exit 0"
 	},
 	"keywords": [],
