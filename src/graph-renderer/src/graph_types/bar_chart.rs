@@ -371,6 +371,19 @@ impl BarChart {
 		}
 	}
 
+	fn deselect_bars(&mut self, timestamp: f64) {
+		for i in 0..self.bars.len() {
+			let selected = matches!(
+				self.bars[i].selected_state,
+				SelectedState::Selected { timestamp: _ }
+			);
+
+			if selected {
+				self.bars[i].selected_state = SelectedState::None { timestamp };
+			}
+		}
+	}
+
 	fn calculate_bars(
 		&mut self,
 		timestamp: f64,
@@ -398,6 +411,7 @@ impl BarChart {
 		}
 
 		let mut all_animations_done = true;
+		let mut any_bar_was_clicked = false;
 
 		for x in 0..bars_count {
 			let anim_data = BarHeightAnimData {
@@ -450,6 +464,7 @@ impl BarChart {
 
 				if clicking {
 					self.toggle_bar_selection_at(x, timestamp);
+					any_bar_was_clicked = true;
 				}
 			} else if let PointerState::None = bar.pointer_state {
 			} else {
@@ -512,6 +527,11 @@ impl BarChart {
 			if !animation.is_completed() {
 				all_animations_done = false;
 			}
+		}
+
+		if clicking && !any_bar_was_clicked {
+			self.deselect_bars(timestamp);
+			all_animations_done = false;
 		}
 
 		self.is_animating = !all_animations_done;
