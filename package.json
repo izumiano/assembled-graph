@@ -10,6 +10,7 @@
 		"buildExamples": "tsc --build examples/tsconfig.json",
 		"compileWasm": "cd src/graph-renderer && wasm-pack build --target web",
 		"compileWasmDev": "cd src/graph-renderer && wasm-pack build --target web --dev",
+		"lintWasm": "cd src/graph-renderer && cargo clippy --all-targets --all-features --workspace -- -D warnings",
 		"lint": "biome check",
 		"test": "exit 0"
 	},
