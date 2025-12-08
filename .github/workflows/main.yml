@@ -35,7 +35,7 @@ jobs:
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features --all-features --workspace -- -A dead_code -D warnings # cargo clippy --all-targets --all-features --workspace -- -A dead_code -D warnings
+          args: --all-targets --all-features --workspace -- -A dead_code -D warnings # cargo clippy --all-targets --all-features --workspace -- -A dead_code -D warnings
       - name: Rustfmt Check
         uses: actions-rust-lang/rustfmt@v1
       - name: Compile rust to wasm
