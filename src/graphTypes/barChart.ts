@@ -71,7 +71,7 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 
 			new WasmBarChartLayout(
 				new WasmPositioning(
-					options.positioning.bottom + options.titleFontSize,
+					options.positioning.bottom + options.titleFontSize * devicePixelRatio,
 					options.positioning.top,
 					options.positioning.left,
 					options.positioning.right,
@@ -116,7 +116,7 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 				clickingState = WasmClickingState.None;
 		}
 
-		this.wasmGraph.update(timestamp, pointer?.x, pointer?.y, clickingState);
+		this.wasmGraph.update(timestamp, pointer.x, pointer.y, clickingState);
 	}
 	render() {
 		this.wasmGraph.render();
@@ -211,27 +211,29 @@ export default class BarChart
 			positioning:
 				typeof options.positioning !== "number"
 					? {
-							top: options.positioning?.top ?? 0,
-							left: options.positioning?.left ?? 0,
-							right: options.positioning?.right ?? 0,
-							bottom: options.positioning?.bottom ?? 0,
+							top: (options.positioning?.top ?? 0) * devicePixelRatio,
+							left: (options.positioning?.left ?? 0) * devicePixelRatio,
+							right: (options.positioning?.right ?? 0) * devicePixelRatio,
+							bottom: (options.positioning?.bottom ?? 0) * devicePixelRatio,
 						}
 					: {
-							top: options.positioning,
-							left: options.positioning,
-							right: options.positioning,
-							bottom: options.positioning,
+							top: options.positioning * devicePixelRatio,
+							left: options.positioning * devicePixelRatio,
+							right: options.positioning * devicePixelRatio,
+							bottom: options.positioning * devicePixelRatio,
 						},
-			gap: options.gap ?? 0,
+			gap: (options.gap ?? 0) * devicePixelRatio,
 			titleFontSize: options.titleFontSize ?? 10,
-			barCornerRadius: options.barCornerRadius ?? 10,
+			barCornerRadius: (options.barCornerRadius ?? 10) * devicePixelRatio,
 			valueAxis: {
-				width: options.valueAxis?.width ?? 0,
-				smallestScale: options.valueAxis?.smallestScale ?? 1,
-				minPixelDistance: options.valueAxis?.minPixelDistance ?? 20,
+				width: (options.valueAxis?.width ?? 0) * devicePixelRatio,
+				smallestScale:
+					(options.valueAxis?.smallestScale ?? 1) * devicePixelRatio,
+				minPixelDistance:
+					(options.valueAxis?.minPixelDistance ?? 20) * devicePixelRatio,
 			},
-			minWidth: options.minWidth ?? 1,
-			minHeight: options.minHeight ?? 1,
+			minWidth: (options.minWidth ?? 1) * devicePixelRatio,
+			minHeight: (options.minHeight ?? 1) * devicePixelRatio,
 			hoverScale: options.hoverScale ?? 1.1,
 		};
 	}
@@ -262,10 +264,18 @@ export default class BarChart
 							// biome-ignore lint/style/noNonNullAssertion: <we are checking length>
 							data: this.data[selectedBarIndex]!,
 							positionInfo: {
-								x: this.wasmGraphRenderer.getBarXAt(selectedBarIndex),
-								y: this.wasmGraphRenderer.getBarYAt(selectedBarIndex),
-								width: this.wasmGraphRenderer.getBarWidthAt(selectedBarIndex),
-								height: this.wasmGraphRenderer.getBarHeightAt(selectedBarIndex),
+								x:
+									this.wasmGraphRenderer.getBarXAt(selectedBarIndex) /
+									devicePixelRatio,
+								y:
+									this.wasmGraphRenderer.getBarYAt(selectedBarIndex) /
+									devicePixelRatio,
+								width:
+									this.wasmGraphRenderer.getBarWidthAt(selectedBarIndex) /
+									devicePixelRatio,
+								height:
+									this.wasmGraphRenderer.getBarHeightAt(selectedBarIndex) /
+									devicePixelRatio,
 							},
 							index: selectedBarIndex,
 						}
@@ -276,6 +286,8 @@ export default class BarChart
 
 	public render() {
 		// console.log("render");
+		this.ctx.fillStyle = "black";
+		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 		this.wasmGraphRenderer.render();
 
 		this.imageData.data.set(this.pixelsArr);
@@ -290,9 +302,10 @@ export default class BarChart
 				this.ctx,
 				`${roundToNearestMultiple(this.wasmGraphRenderer.getScaleLineValueAt(i), this.options.valueAxis.smallestScale)}`,
 				0,
-				this.wasmGraphRenderer.getScaleLineYAt(i) +
-					this.options.titleFontSize / 2,
-				this.wasmGraphRenderer.getScaleLineXAt(i) - 10,
+				(this.wasmGraphRenderer.getScaleLineYAt(i) +
+					this.options.titleFontSize / 2) /
+					devicePixelRatio,
+				(this.wasmGraphRenderer.getScaleLineXAt(i) - 10) / devicePixelRatio,
 				{ horizontalAlignment: "right" },
 			);
 
@@ -313,9 +326,9 @@ export default class BarChart
 			fillTextWithMaxWidth(
 				this.ctx,
 				this.wasmGraphRenderer.getBarTitleAt(i),
-				this.wasmGraphRenderer.getBarXAt(i),
-				this.height - this.options.positioning.bottom,
-				width,
+				this.wasmGraphRenderer.getBarXAt(i) / devicePixelRatio,
+				(this.height - this.options.positioning.bottom) / devicePixelRatio,
+				width / devicePixelRatio,
 				{ horizontalAlignment: "center" },
 			);
 		}

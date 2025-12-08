@@ -41,6 +41,7 @@ export type PointerType = {
 	clickingState: ClickingState;
 };
 
+export const devicePixelRatio = window.devicePixelRatio || 1;
 export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 	protected canvas: HTMLCanvasElement;
 	protected ctx: CanvasRenderingContext2D;
@@ -62,6 +63,11 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 			throw new Error("Failed getting canvas rendering context");
 		}
 
+		canvas.style.width = `${canvas.width}px`;
+		canvas.style.height = `${canvas.height}px`;
+		canvas.width = canvas.width * devicePixelRatio;
+		canvas.height = canvas.height * devicePixelRatio;
+		ctx.scale(devicePixelRatio, devicePixelRatio);
 		this.canvas = canvas;
 		this.ctx = ctx;
 		this.width = canvas.width;
@@ -82,13 +88,17 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 	}
 
 	public resize(width: number, height: number) {
-		this.canvas.width = width;
-		this.canvas.height = height;
+		this.canvas.width = width * devicePixelRatio;
+		this.canvas.height = height * devicePixelRatio;
+
+		this.canvas.style.width = `${width}px`;
+		this.canvas.style.height = `${height}px`;
+		this.ctx.scale(devicePixelRatio, devicePixelRatio);
 
 		this.width = this.canvas.width;
 		this.height = this.canvas.height;
 
-		this.wasmGraphRenderer.resize(width, height);
+		this.wasmGraphRenderer.resize(this.canvas.width, this.canvas.height);
 		const pixelsPointer = this.wasmGraphRenderer.getPixelsPtr();
 		this.pixelsArr = new Uint8ClampedArray(
 			this.wasmMemory.buffer,

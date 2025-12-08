@@ -85,7 +85,11 @@ export default class GraphManager {
 		const rect = canvas.getBoundingClientRect();
 		const mouseX = e.clientX - rect.left;
 		const mouseY = e.clientY - rect.top;
-		renderer.pointer = { x: mouseX, y: mouseY, clickingState: "Holding" };
+		renderer.pointer = {
+			x: mouseX * devicePixelRatio,
+			y: mouseY * devicePixelRatio,
+			clickingState: "Holding",
+		};
 		this.pointerStart = { touchId };
 		renderer.update(this.timestamp);
 	}
@@ -100,8 +104,8 @@ export default class GraphManager {
 		const mouseX = e.clientX - rect.left;
 		const mouseY = e.clientY - rect.top;
 		renderer.pointer = {
-			x: mouseX,
-			y: mouseY,
+			x: mouseX * devicePixelRatio,
+			y: mouseY * devicePixelRatio,
 			clickingState: this.pointerStart ? "Holding" : "None",
 		};
 
@@ -144,7 +148,6 @@ export default class GraphManager {
 		});
 
 		canvas.addEventListener("mouseleave", () => {
-			console.log("leave");
 			this.handleCancelInput(renderer);
 		});
 
