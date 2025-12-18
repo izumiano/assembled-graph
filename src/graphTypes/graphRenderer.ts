@@ -1,6 +1,6 @@
 import type { ClickingState } from "../index.js";
 
-interface Color {
+export interface Color {
 	r: number;
 	g: number;
 	b: number;
