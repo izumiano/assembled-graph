@@ -2,10 +2,19 @@
 	"name": "@izumiano/assembled-graph",
 	"version": "0.0.6",
 	"description": "",
-	"main": "index.js",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.umd.cjs"
+		}
+	},
 	"scripts": {
-		"build": "tsc --build",
-		"watch": "tsc --watch",
+		"typecheck": "tsc --watch --noEmit",
+		"build": "tsc -b && vite build",
 		"watchExamples": "tsc --watch -p examples/tsconfig.json",
 		"buildExamples": "tsc --build examples/tsconfig.json",
 		"compileWasm": "cd src/graph-renderer && wasm-pack build --target web",
@@ -24,6 +33,11 @@
 	"type": "module",
 	"devDependencies": {
 		"@biomejs/biome": "2.3.10",
-		"typescript": "^5.9.3"
+		"@pbr1111/vite-plugin-biome": "^1.1.3",
+		"@types/node": "^25.0.3",
+		"typescript": "^5.9.3",
+		"vite": "^7.2.4",
+		"vite-plugin-dts": "^4.5.4",
+		"vite-plugin-wasm": "^3.5.0"
 	}
 }

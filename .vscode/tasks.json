@@ -2,13 +2,38 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Start Dev",
-			"dependsOn": ["npm: watch", "npm: watchExamples"],
+			"label": "Build -Debug",
+			"dependsOn": ["compileWasm -debug", "build vite"],
+			"dependsOrder": "sequence",
 			"group": {
 				"kind": "build",
-				"isDefault": false
+				"isDefault": true
 			},
 			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			}
+		},
+		{
+			"label": "Build -Release",
+			"dependsOn": ["compileWasm -release", "build vite"],
+			"dependsOrder": "sequence",
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			}
+		},
+		{
+			"label": "Start Dev",
+			"dependsOn": ["npm: watchExamples", "npm: typecheck"],
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
 				"panel": "shared",
 				"showReuseMessage": true,
 				"clear": false
@@ -16,15 +41,10 @@
 		},
 		{
 			"type": "npm",
-			"script": "watch",
-			"label": "npm: watch",
-			"problemMatcher": "$tsc-watch",
+			"script": "build",
+			"label": "build vite",
 			"isBackground": true,
-			"detail": "start watching main",
-			"group": {
-				"kind": "build",
-				"isDefault": false
-			}
+			"group": "build"
 		},
 		{
 			"type": "npm",
@@ -33,43 +53,16 @@
 			"problemMatcher": "$tsc-watch",
 			"isBackground": true,
 			"detail": "start watch examples",
-			"group": {
-				"kind": "build",
-				"isDefault": false
-			}
-		},
-		{
-			"label": "Build graphRenderer -dev",
-			"dependsOn": ["compileWasm -debug", "Wasm -> dist"],
-			"dependsOrder": "sequence",
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
-			"presentation": {
-				"clear": true
-			}
-		},
-		{
-			"label": "Build graphRenderer -release",
-			"dependsOn": ["compileWasm -release", "Wasm -> dist"],
-			"dependsOrder": "sequence",
-			"group": {
-				"kind": "build",
-				"isDefault": false
-			},
-			"presentation": {
-				"clear": true
-			}
+			"group": "build"
 		},
 		{
 			"type": "npm",
 			"script": "compileWasmDev",
 			"label": "compileWasm -debug",
 			"detail": "compile rust to wasm -debug",
-			"group": {
-				"kind": "build",
-				"isDefault": false
+			"group": "build",
+			"presentation": {
+				"clear": true
 			}
 		},
 		{
@@ -77,27 +70,9 @@
 			"script": "compileWasm",
 			"label": "compileWasm -release",
 			"detail": "compile rust to wasm -release",
-			"group": {
-				"kind": "build",
-				"isDefault": false
-			}
-		},
-		{
-			"type": "shell",
-			"windows": {
-				"command": "xcopy src\\graph-renderer\\pkg dist\\graph-renderer\\pkg /s /e /h /I /y"
-			},
-			"linux": {
-				"command": "cp -rf src/graph-renderer/pkg dist/graph-renderer/pkg"
-			},
-			"osx": {
-				"command": "cp -rf src/graph-renderer/pkg dist/graph-renderer/pkg"
-			},
-			"label": "Wasm -> dist",
-			"detail": "Move wasm files to dist folder",
-			"group": {
-				"kind": "build",
-				"isDefault": false
+			"group": "build",
+			"presentation": {
+				"clear": true
 			}
 		},
 		{
@@ -119,6 +94,14 @@
 				"kind": "test",
 				"isDefault": false
 			}
+		},
+		{
+			"type": "npm",
+			"script": "typecheck",
+			"problemMatcher": ["$tsgo-watch"],
+			"label": "npm: typecheck",
+			"detail": "tsc --watch --noEmit -p",
+			"isBackground": true
 		}
 	]
 }

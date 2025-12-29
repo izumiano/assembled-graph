@@ -1,4 +1,4 @@
-import type { ClickingState } from "../index.js";
+import type { ClickingState } from "../graphManager";
 
 interface Color {
 	r: number;
