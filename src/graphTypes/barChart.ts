@@ -250,6 +250,10 @@ export default class BarChart
 		super._init(memory, wasmGraphRenderer);
 	}
 
+	public dispose() {
+		this.wasmGraphRenderer.wasmGraph.free();
+	}
+
 	public update(timestamp: number): void {
 		this.wasmGraphRenderer.update(timestamp, this.pointer);
 
@@ -286,13 +290,7 @@ export default class BarChart
 
 	public render() {
 		// console.log("render");
-		this.ctx.fillStyle = "black";
-		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-		this.wasmGraphRenderer.render();
-
-		this.imageData.data.set(this.pixelsArr);
-
-		this.ctx.putImageData(this.imageData, 0, 0);
+		this.baseRender();
 
 		this.ctx.font = `${this.options.titleFontSize}px Arial`;
 		this.ctx.fillStyle = "white";
