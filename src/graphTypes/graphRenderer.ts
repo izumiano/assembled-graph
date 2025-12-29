@@ -56,6 +56,8 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 
 	public pointer: PointerType;
 
+	private hasInitialized = false;
+
 	constructor(canvas: HTMLCanvasElement) {
 		const ctx = canvas.getContext("2d");
 
@@ -77,6 +79,12 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 	}
 
 	protected _init(memory: WebAssembly.Memory, wasmGraphRenderer: WasmInterop) {
+		if (this.hasInitialized) {
+			console.error("Renderer has already been initialized");
+			return;
+		}
+		this.hasInitialized = true;
+
 		this.wasmMemory = memory;
 
 		this.pixelsArr = new Uint8ClampedArray(

@@ -10,8 +10,9 @@ export type ClickingState = "None" | "Holding" | "JustReleased";
 
 export default class GraphManager {
 	private initOutput: InitOutput;
-	private renderers: (IGraphRenderer &
-		GraphRenderer<unknown, WasmGraphRendererInterop<unknown>>)[] = [];
+	private renderers: Set<
+		IGraphRenderer & GraphRenderer<unknown, WasmGraphRendererInterop<unknown>>
+	> = new Set();
 	private timestamp!: number;
 
 	private pointerStart: {
@@ -70,9 +71,19 @@ export default class GraphManager {
 		const canvas = renderer.getCanvas();
 		this.handleInput(canvas, renderer);
 
-		this.renderers.push(renderer);
+		this.renderers.add(renderer);
 
 		return renderer;
+	}
+
+	public removeGraph<
+		TGraphRenderer extends GraphRenderer<
+			unknown,
+			WasmGraphRendererInterop<unknown>
+		> &
+			IGraphRenderer,
+	>(renderer: TGraphRenderer) {
+		this.renderers.delete(renderer);
 	}
 
 	private handleClick(
