@@ -30,7 +30,7 @@ type ValueAxisOptions = {
 	minPixelDistance?: number;
 };
 
-interface BarChartOptions extends GraphRendererOptions {
+export interface BarChartOptions extends GraphRendererOptions {
 	gap?: number;
 	titleFontSize?: number;
 	barCornerRadius?: number;
