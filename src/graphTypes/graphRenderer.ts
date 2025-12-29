@@ -1,6 +1,6 @@
 import type { ClickingState } from "../graphManager";
 
-export interface Color {
+interface Color {
 	r: number;
 	g: number;
 	b: number;
