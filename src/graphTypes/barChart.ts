@@ -12,17 +12,20 @@ import { fillTextWithMaxWidth, roundToNearestMultiple } from "../utils.js";
 
 import {
 	GraphRenderer,
+	type GraphData,
 	type GraphRendererOptions,
 	type IGraphRenderer,
 	type PointerType,
 	type Positioning,
 	type WasmGraphRendererInterop,
-} from "./graphRenderer.js";
+} from "./graphRenderer";
 
-interface DataPoint {
+export interface DataPoint {
 	title: string;
 	value: number;
 }
+
+export type BarChartData = DataPoint[] & GraphData;
 
 type ValueAxisOptions = {
 	width?: number;
@@ -91,6 +94,9 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 
 			options.hoverScale,
 		);
+	}
+	updateData(data: WasmDataPoint[], timestamp: number) {
+		this.wasmGraph.update_data(data, timestamp);
 	}
 
 	getPixelsPtr() {
@@ -161,6 +167,10 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	}
 }
 
+function dataToWasmData(data: BarChartData) {
+	return data.map((item) => new WasmDataPoint(item.title, item.value));
+}
+
 type InternalBarChartOptions = Required<
 	Omit<BarChartOptions, "positioning" | "valueAxis">
 > & {
@@ -172,7 +182,7 @@ export default class BarChart
 	implements IGraphRenderer
 {
 	private options: InternalBarChartOptions;
-	private data: DataPoint[];
+	private data: BarChartData;
 	private onSelectionChange:
 		| ((
 				_: {
@@ -187,7 +197,7 @@ export default class BarChart
 
 	constructor(
 		canvas: HTMLCanvasElement,
-		data: DataPoint[],
+		data: BarChartData,
 		options: BarChartOptions,
 		onSelectionChange?: (
 			_: {
@@ -237,10 +247,40 @@ export default class BarChart
 			hoverScale: options.hoverScale ?? 1.1,
 		};
 	}
+	updateData(data: BarChartData, timestamp: number) {
+		if (data === this.data) {
+			return;
+		}
+
+		if (data.length !== this.data.length) {
+			throw new Error("Changing length of data is not yet supported");
+		}
+
+		let hasDifference = false;
+		for (let i = 0; i < data.length; i++) {
+			const newDataPoint = data[i];
+			const oldDataPoint = this.data[i];
+
+			if (
+				newDataPoint.value !== oldDataPoint.value ||
+				newDataPoint.title !== oldDataPoint.title
+			) {
+				hasDifference = true;
+				break;
+			}
+		}
+		if (!hasDifference) {
+			return;
+		}
+
+		this.data = data;
+		this.wasmGraphRenderer.updateData(dataToWasmData(data), timestamp);
+		this.wasmGraphRenderer.update(timestamp, this.pointer);
+	}
 
 	public init(memory: WebAssembly.Memory, startTimestamp: number): void {
 		const wasmGraphRenderer = new WasmBarChartInterop({
-			data: this.data.map((item) => new WasmDataPoint(item.title, item.value)),
+			data: dataToWasmData(this.data),
 			startTimestamp,
 			width: this.canvas.width,
 			height: this.canvas.height,

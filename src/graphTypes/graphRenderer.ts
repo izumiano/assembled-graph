@@ -35,6 +35,7 @@ export interface WasmGraphRendererInterop<TGraph> {
 		clickingState: ClickingState,
 	): void;
 	render(): void;
+	updateData(data: GraphData, timestamp: number): void;
 	getIsAnimating(): boolean;
 }
 
@@ -160,7 +161,11 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 			);
 			this.imageData.data.set(this.pixelsArr);
 		} else {
-			console.error("Pointer+Size was outsize the bounds of the pixel buffer");
+			console.error("Pointer+Size was outsize the bounds of the pixel buffer", {
+				pointer,
+				bufferSize: this.pixelBufferSize,
+				memorySize: this.wasmMemory.buffer.byteLength,
+			});
 		}
 		this.ctx.putImageData(this.imageData, 0, 0);
 	}
@@ -192,10 +197,13 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 	}
 }
 
+export type GraphData = object;
+
 export interface IGraphRenderer {
 	init(memory: WebAssembly.Memory, timestamp: number): void;
 	update(timestamp: number): void;
 	render(): void;
+	updateData(data: GraphData, timestamp: number): void;
 	isAnimating(): boolean;
 	dispose(): void;
 	removeInputEventHandlers(): void;

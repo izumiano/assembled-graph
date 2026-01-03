@@ -4,9 +4,7 @@ use std::cmp::min;
 use wasm_bindgen::prelude::*;
 
 use crate::DefineAnimation;
-use crate::animation::Animation;
-use crate::animation::AnimationData;
-use crate::animation::AnimationStateData;
+use crate::animation::*;
 use crate::graph_types::utils::*;
 use crate::log;
 use crate::utils::NumUtils;
@@ -23,7 +21,7 @@ enum PointerState {
 	Hover,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum SelectedState {
 	None { timestamp: f64 },
 	Selected { timestamp: f64 },
@@ -40,7 +38,7 @@ impl SelectedState {
 
 DefineAnimation!(BarHoverAnimationData, CurrentBarHoverAnimData, scale);
 
-DefineAnimation!(BarHeightAnimData, CurrentBarHeightAnimData, scale);
+DefineAnimation!(BarHeightAnimData, CurrentBarHeightAnimData, scale_t);
 
 DefineAnimation!(SelectBarAnimData, CurrentSelectBarAnimData, color_t);
 DefineAnimation!(ClickingBarAnimData, CurrentClickingBarAnimData, color_t);
@@ -59,6 +57,7 @@ struct BarData {
 	pointer_state: PointerState,
 	selected_state: SelectedState,
 
+	start_scale_t: f32,
 	hover_anim: BarHoverAnimationData,
 	clicking_state: ClickingState,
 	clicking_bar_anim: ClickingBarAnimData,
@@ -147,11 +146,66 @@ pub struct BarChart {
 	selected_bar_index: Option<usize>,
 }
 
+fn handle_data(
+	mut data: Vec<DataPoint>,
+	old_bars: &[BarData],
+	graph_height: u32,
+	timestamp: f64,
+) -> (Vec<DataPoint>, Vec<BarData>, f32) {
+	let mut bars: Vec<BarData> = Vec::with_capacity(data.len());
+	let mut max_val = 0.0;
+	for data_point in &data {
+		max_val = data_point.value.max(max_val);
+	}
+
+	for (index, data_point) in &mut data.iter_mut().enumerate() {
+		let mut start_scale_t = 0.;
+		let mut selected_state = SelectedState::None { timestamp };
+		if index < old_bars.len() {
+			let old_bar = &old_bars[index];
+			start_scale_t = old_bar.height as f32 / graph_height as f32;
+			selected_state = old_bar.selected_state.clone();
+		}
+
+		bars.push(BarData {
+			title: data_point.title.clone(),
+			x: 0,
+			y: 0,
+			width: 0,
+			height: 0,
+			scale: 1.0,
+			color_t: 0.,
+			color: Color {
+				r: 255,
+				g: 255,
+				b: 255,
+				a: 255,
+			},
+			pointer_state: PointerState::None,
+			selected_state,
+			start_scale_t,
+			hover_anim: BarHoverAnimationData {
+				timestamp,
+				scale: AnimationStateData { from: 1.0, to: 1.0 },
+			},
+			clicking_state: ClickingState::None,
+			clicking_bar_anim: ClickingBarAnimData {
+				timestamp,
+				color_t: AnimationStateData { from: 0., to: 0. },
+			},
+		});
+
+		data_point.value /= max_val;
+	}
+
+	(data, bars, max_val)
+}
+
 #[wasm_bindgen]
 impl BarChart {
 	#[wasm_bindgen(constructor)]
 	pub fn new(
-		mut data: Vec<DataPoint>,
+		data: Vec<DataPoint>,
 		start_timestamp: f64,
 		width: u32,
 		height: u32,
@@ -163,43 +217,9 @@ impl BarChart {
 	) -> BarChart {
 		let size = width * height * 4;
 		let pixels = vec![0; size as usize];
-		let mut bars: Vec<BarData> = Vec::with_capacity(data.len());
+
 		let mut scale_lines: Vec<ScaleLineObject> = Vec::with_capacity(100);
 		let scale_line_count = 0;
-
-		let mut max_val = 0.0;
-		for data_point in &data {
-			bars.push(BarData {
-				title: data_point.title.clone(),
-				x: 0,
-				y: 0,
-				width: 0,
-				height: 0,
-				scale: 1.0,
-				color_t: 0.,
-				color: Color {
-					r: 255,
-					g: 255,
-					b: 255,
-					a: 255,
-				},
-				pointer_state: PointerState::None,
-				selected_state: SelectedState::None {
-					timestamp: start_timestamp,
-				},
-				hover_anim: BarHoverAnimationData {
-					timestamp: start_timestamp,
-					scale: AnimationStateData { from: 1.0, to: 1.0 },
-				},
-				clicking_state: ClickingState::None,
-				clicking_bar_anim: ClickingBarAnimData {
-					timestamp: start_timestamp,
-					color_t: AnimationStateData { from: 0., to: 0. },
-				},
-			});
-
-			max_val = data_point.value.max(max_val);
-		}
 
 		for _ in 0..100 {
 			scale_lines.push(ScaleLineObject {
@@ -212,9 +232,12 @@ impl BarChart {
 			});
 		}
 
-		for point in &mut data {
-			point.value /= max_val;
-		}
+		let (data, bars, max_val) = handle_data(
+			data,
+			&[],
+			height - layout.positioning.bottom - layout.positioning.top,
+			start_timestamp,
+		);
 
 		BarChart {
 			data,
@@ -267,6 +290,19 @@ impl BarChart {
 		self.height = height;
 		let size = width * height * 4;
 		self.pixels = vec![0; size as usize];
+	}
+
+	pub fn update_data(&mut self, data: Vec<DataPoint>, timestamp: f64) {
+		let (data, bars, max_val) = handle_data(
+			data,
+			&self.bars,
+			self.height - self.bottom - self.top,
+			timestamp,
+		);
+		self.data = data;
+		self.bars = bars;
+		self.max_val = max_val;
+		self.start_timestamp = timestamp;
 	}
 
 	pub fn get_bars_len(&self) -> usize {
@@ -428,9 +464,11 @@ impl BarChart {
 		let mut any_bar_was_clicked = false;
 
 		for x in 0..bars_count {
+			let bar = &mut self.bars[x];
+
 			let anim_data = BarHeightAnimData {
 				timestamp: self.start_timestamp,
-				scale: AnimationStateData { from: 0.0, to: 1.0 },
+				scale_t: AnimationStateData { from: 0.0, to: 1.0 },
 			};
 			let animation = Animation::new(&anim_data, timestamp, 500.0, 100.0 * x as f64);
 
@@ -438,18 +476,16 @@ impl BarChart {
 				all_animations_done = false;
 			}
 
-			let height_scale = animation.get_current().scale;
-
 			let x_pos = (x as f32 * base_width + left as f32).to_u32();
 			let width = unclamped_width.max(self.min_width as f32).to_u32();
-			let height = (max(
+
+			let scale_t = animation.get_current().scale_t;
+			let full_height = max(
 				(height as f32 * self.data[x].value).to_u32(),
 				self.min_height,
-			) as f32
-				* height_scale) as u32;
+			) as f32;
+			let height = lerp(bar.start_scale_t * height as f32, full_height, scale_t).to_u32();
 			let y_pos = (self.height as i32 - bottom as i32 - height as i32).to_u32();
-
-			let bar = &mut self.bars[x];
 
 			bar.x = x_pos;
 			bar.y = y_pos;
