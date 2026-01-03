@@ -252,6 +252,7 @@ export default class BarChart
 
 	public dispose() {
 		this.wasmGraphRenderer.wasmGraph.free();
+		this.removeInputEventHandlers();
 	}
 
 	public update(timestamp: number): void {
@@ -290,7 +291,7 @@ export default class BarChart
 
 	public render() {
 		// console.log("render");
-		this.baseRender();
+		super.render();
 
 		this.ctx.font = `${this.options.titleFontSize}px Arial`;
 		this.ctx.fillStyle = "white";

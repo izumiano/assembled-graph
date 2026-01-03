@@ -23,23 +23,45 @@ export default class GraphManager {
 		this.initOutput = initOutput;
 	}
 
-	public static async create() {
+	public static async create(
+		abortSignal?: AbortSignal,
+	): Promise<GraphManager | null> {
 		const initOutput = await init();
+		if (abortSignal?.aborted) {
+			console.warn("aborted");
+			return null;
+		}
 		const manager = new GraphManager(initOutput);
 
 		requestAnimationFrame((timestamp) => {
 			manager.timestamp = timestamp;
-			manager.handleAnimation(timestamp);
+			manager.handleAnimation(timestamp, abortSignal);
 		});
 
 		while (manager.timestamp == null) {
 			await sleepFor(10);
 		}
+		if (abortSignal?.aborted) {
+			console.warn("aborted");
+			return null;
+		}
 
 		return manager;
 	}
 
-	private handleAnimation(timestamp: number) {
+	public dispose() {
+		this.renderers.forEach((renderer) => {
+			renderer.dispose();
+		});
+		this.renderers.clear();
+	}
+
+	private handleAnimation(timestamp: number, abortSignal?: AbortSignal) {
+		if (abortSignal?.aborted) {
+			console.warn("aborted");
+			return;
+		}
+
 		this.renderers.forEach((renderer) => {
 			if (!renderer.isAnimating()) {
 				return;
@@ -50,7 +72,9 @@ export default class GraphManager {
 
 		this.timestamp = timestamp;
 
-		requestAnimationFrame(this.handleAnimation.bind(this));
+		requestAnimationFrame((timestamp) => {
+			this.handleAnimation.bind(this)(timestamp, abortSignal);
+		});
 	}
 
 	public getTimestamp() {
@@ -84,7 +108,6 @@ export default class GraphManager {
 			IGraphRenderer,
 	>(renderer: TGraphRenderer) {
 		renderer.dispose();
-		renderer.removeInputEventHandlers();
 
 		this.renderers.delete(renderer);
 	}

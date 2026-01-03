@@ -148,7 +148,7 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 		this.wasmGraphRenderer = wasmGraphRenderer;
 	}
 
-	protected baseRender() {
+	protected render() {
 		this.wasmGraphRenderer.render();
 
 		const pointer = this.wasmGraphRenderer.getPixelsPtr();
@@ -159,6 +159,8 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 				this.pixelBufferSize,
 			);
 			this.imageData.data.set(this.pixelsArr);
+		} else {
+			console.error("Pointer+Size was outsize the bounds of the pixel buffer");
 		}
 		this.ctx.putImageData(this.imageData, 0, 0);
 	}
@@ -196,4 +198,5 @@ export interface IGraphRenderer {
 	render(): void;
 	isAnimating(): boolean;
 	dispose(): void;
+	removeInputEventHandlers(): void;
 }
