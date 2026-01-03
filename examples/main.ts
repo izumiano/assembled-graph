@@ -52,10 +52,12 @@ const graph = new BarChart(
 		graphInfoElem.style.top = `${positionInfo.y}px`;
 	},
 );
-graphManager.addGraph(graph);
+if (graphManager) {
+	graphManager.addGraph(graph);
 
-window.onresize = () => {
-	graph.resize(document.body.clientWidth, document.body.clientHeight);
-	graph.update(graphManager.getTimestamp());
-	graph.render();
-};
+	window.onresize = () => {
+		graph.resize(document.body.clientWidth, document.body.clientHeight);
+		graph.update(graphManager.getTimestamp());
+		graph.render();
+	};
+}
