@@ -7,8 +7,7 @@ export interface Color {
 	a?: number;
 }
 
-type MouseEventHandler = (e: MouseEvent) => void;
-type TouchEventHandler = (e: TouchEvent) => void;
+type PointerEventHandler = (e: PointerEvent) => void;
 
 export type Positioning =
 	| {
@@ -45,30 +44,24 @@ export type PointerType = {
 	clickingState: ClickingState;
 };
 
-type MouseEventType = {
-	type: "mousedown" | "mousemove" | "mouseup" | "mouseleave";
-	handler: MouseEventHandler;
-};
-
-type TouchEventType = {
-	type: "touchstart" | "touchmove" | "touchcancel" | "touchend";
-	handler: TouchEventHandler;
-};
-
-type InputEventType = (MouseEventType | TouchEventType) & {
+type InputEventType = {
+	type: "pointerdown" | "pointermove" | "pointerup" | "pointerout";
+	handler: PointerEventHandler;
 	canvas: HTMLCanvasElement;
 };
 
-function isMouseEvent(e: MouseEventType | TouchEventType): e is MouseEventType {
-	return e.type.startsWith("mouse");
-}
-
 export const devicePixelRatio = window.devicePixelRatio || 1;
-export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
+export class GraphRenderer<
+	T,
+	WasmInterop extends WasmGraphRendererInterop<T>,
+	TOptions extends GraphRendererOptions,
+> {
 	protected canvas: HTMLCanvasElement;
 	protected ctx: CanvasRenderingContext2D;
 	protected width: number;
 	protected height: number;
+
+	protected options: TOptions;
 
 	protected wasmMemory!: WebAssembly.Memory;
 	protected pixelsArr!: Uint8ClampedArray;
@@ -83,42 +76,28 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 	private pixelBufferSize = 0;
 
 	private inputEventHandlers: {
-		mousedown?: MouseEventHandler;
-		mousemove?: MouseEventHandler;
-		mouseup?: MouseEventHandler;
-		mouseleave?: MouseEventHandler;
-		touchstart?: TouchEventHandler;
-		touchmove?: TouchEventHandler;
-		touchcancel?: TouchEventHandler;
-		touchend?: TouchEventHandler;
+		pointerdown?: PointerEventHandler;
+		pointermove?: PointerEventHandler;
+		pointerup?: PointerEventHandler;
+		pointerout?: PointerEventHandler;
 	} = {};
 
 	addInputEventHandler(params: InputEventType) {
-		const e = params as MouseEventType | TouchEventType;
-		if (isMouseEvent(e)) {
-			this.inputEventHandlers[e.type] = e.handler;
-			this.canvas.addEventListener(e.type, e.handler);
-		} else {
-			this.inputEventHandlers[e.type] = e.handler;
-			this.canvas.addEventListener(e.type, e.handler);
-		}
+		this.inputEventHandlers[params.type] = params.handler;
+		this.canvas.addEventListener(params.type, params.handler);
 	}
 
 	removeInputEventHandlers() {
 		for (const [_key, value] of Object.entries(this.inputEventHandlers)) {
 			const key = _key as keyof typeof this.inputEventHandlers;
 			const e = { type: key, handler: value } as InputEventType;
-			if (isMouseEvent(e)) {
-				this.canvas.removeEventListener(e.type, e.handler);
-			} else {
-				this.canvas.removeEventListener(e.type, e.handler);
-			}
+			this.canvas.removeEventListener(e.type, e.handler);
 		}
 
 		this.inputEventHandlers = {};
 	}
 
-	constructor(canvas: HTMLCanvasElement) {
+	constructor(canvas: HTMLCanvasElement, options: TOptions) {
 		const ctx = canvas.getContext("2d");
 
 		if (!ctx) {
@@ -137,6 +116,7 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 		this.pixelBufferSize = this.width * this.height * 4;
 		this.imageData = new ImageData(this.width, this.height);
 		this.pointer = { x: -1, y: -1, clickingState: "None" };
+		this.options = options;
 	}
 
 	protected _init(memory: WebAssembly.Memory, wasmGraphRenderer: WasmInterop) {
@@ -194,6 +174,10 @@ export class GraphRenderer<T, WasmInterop extends WasmGraphRendererInterop<T>> {
 
 	public getCanvas() {
 		return this.canvas;
+	}
+
+	public getOptions() {
+		return this.options;
 	}
 }
 

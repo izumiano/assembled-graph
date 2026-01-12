@@ -206,10 +206,13 @@ type InternalBarChartOptions = Required<
 	barOptions: Required<BarOptions>;
 };
 export default class BarChart
-	extends GraphRenderer<WasmBarChart, WasmBarChartInterop>
+	extends GraphRenderer<
+		WasmBarChart,
+		WasmBarChartInterop,
+		InternalBarChartOptions
+	>
 	implements IGraphRenderer
 {
-	private options: InternalBarChartOptions;
 	private data: InternalBarChartData;
 	private onSelectionChange:
 		| ((
@@ -235,11 +238,7 @@ export default class BarChart
 			} | null,
 		) => void,
 	) {
-		super(canvas);
-
-		this.data = dataToInternalData(data);
-		this.onSelectionChange = onSelectionChange;
-		this.options = {
+		const internalOptions = {
 			backgroundColor: options.backgroundColor ?? {
 				r: 0,
 				g: 0,
@@ -289,6 +288,11 @@ export default class BarChart
 					(options.valueAxis?.minPixelDistance ?? 20) * devicePixelRatio,
 			},
 		};
+
+		super(canvas, internalOptions);
+
+		this.data = dataToInternalData(data);
+		this.onSelectionChange = onSelectionChange;
 	}
 
 	private drawTitle(index: number) {
