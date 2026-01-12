@@ -23,14 +23,15 @@ const graph = new BarChart(
 	],
 	{
 		backgroundColor: { r: 10, g: 5, b: 40 },
-		gap: 10,
+		barOptions: {
+			cornerRadius: 20,
+			minWidth: 5,
+			minHeight: 7,
+			hoverScale: 1.1,
+		},
 		titleFontSize: 15,
-		barCornerRadius: 20,
 		valueAxis: { width: 40, minPixelDistance: 35 },
 		positioning: { bottom: 30, top: 20, left: 10, right: 10 },
-		minWidth: 5,
-		minHeight: 7,
-		hoverScale: 1.1,
 	},
 	(info) => {
 		if (!info) {
