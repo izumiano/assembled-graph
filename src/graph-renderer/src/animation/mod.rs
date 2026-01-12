@@ -47,10 +47,6 @@ impl<'a, T> Animation<'a, T> {
 	}
 }
 
-pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
-	t * (b - a) + a
-}
-
 fn ease_out_sine(x: f64) -> f32 {
 	((x * PI) / 2.0).sin() as f32
 }
@@ -95,10 +91,6 @@ macro_rules! DefineAnimation {
 			fn get_current(&self, ratio: f32) -> $name2 {
 				let start_state = self.get_start_state();
 				let end_state = self.get_end_state();
-				// $name2 {
-				// 	$($field_name: ratio * (end_state.$field_name - start_state.$field_name)
-				// 		+ start_state.$field_name),*
-				// }
 				$name2 {
 					$($field_name: lerp(start_state.$field_name, end_state.$field_name, ratio)),*
 				}

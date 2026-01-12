@@ -1,9 +1,10 @@
 import {
 	BarChart as WasmBarChart,
+	BarChartOptions as WasmBarChartOptions,
 	BarChartLayout as WasmBarChartLayout,
 	BarLayout as WasmBarLayout,
+	BarOptions as WasmBarOptions,
 	ClickingState as WasmClickingState,
-	Color as WasmColor,
 	DataPoint as WasmDataPoint,
 	Positioning as WasmPositioning,
 	ValueAxisLayout as WasmValueAxisLayout,
@@ -11,14 +12,16 @@ import {
 import { fillTextWithMaxWidth, roundToNearestMultiple } from "../utils.js";
 
 import {
-	GraphRenderer,
+	type Color,
 	type GraphData,
+	GraphRenderer,
 	type GraphRendererOptions,
 	type IGraphRenderer,
 	type PointerType,
 	type Positioning,
 	type WasmGraphRendererInterop,
 } from "./graphRenderer";
+import { colorToWasmColor } from "./wasmUtils.js";
 
 export interface DataPoint {
 	title: string;
@@ -29,18 +32,26 @@ export type BarChartData = DataPoint[] & GraphData;
 
 type ValueAxisOptions = {
 	width?: number;
+	color?: Color;
 	smallestScale?: number;
 	minPixelDistance?: number;
 };
 
-export interface BarChartOptions extends GraphRendererOptions {
+interface BarOptions {
 	gap?: number;
+	hoverScale?: number;
+	color?: Color;
+	hoverColor?: Color;
+	selectedColor?: Color;
+	cornerRadius?: number;
+}
+
+export interface BarChartOptions extends GraphRendererOptions {
+	barOptions?: BarOptions;
 	titleFontSize?: number;
-	barCornerRadius?: number;
 	valueAxis?: ValueAxisOptions;
 	minWidth?: number;
 	minHeight?: number;
-	hoverScale?: number;
 }
 
 class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
@@ -65,13 +76,6 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 			width,
 			height,
 
-			new WasmColor(
-				options.backgroundColor.r,
-				options.backgroundColor.g,
-				options.backgroundColor.b,
-				options.backgroundColor.a ?? 255,
-			),
-
 			new WasmBarChartLayout(
 				new WasmPositioning(
 					options.positioning.bottom + options.titleFontSize * devicePixelRatio,
@@ -80,8 +84,8 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 					options.positioning.right,
 				),
 				new WasmBarLayout(
-					options.gap,
-					options.barCornerRadius,
+					options.barOptions.gap,
+					options.barOptions.cornerRadius,
 					options.minWidth,
 					options.minHeight,
 				),
@@ -92,7 +96,18 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 				),
 			),
 
-			options.hoverScale,
+			new WasmBarChartOptions(
+				colorToWasmColor(options.backgroundColor),
+
+				new WasmBarOptions(
+					colorToWasmColor(options.barOptions.color),
+					colorToWasmColor(options.barOptions.hoverColor),
+					colorToWasmColor(options.barOptions.selectedColor),
+					options.barOptions.hoverScale,
+				),
+
+				colorToWasmColor(options.valueAxis.color),
+			),
 		);
 	}
 	updateData(data: WasmDataPoint[], timestamp: number) {
@@ -172,10 +187,11 @@ function dataToWasmData(data: BarChartData) {
 }
 
 type InternalBarChartOptions = Required<
-	Omit<BarChartOptions, "positioning" | "valueAxis">
+	Omit<BarChartOptions, "positioning" | "valueAxis" | "barOptions">
 > & {
 	positioning: Required<Exclude<Positioning, number>>;
 	valueAxis: Required<ValueAxisOptions>;
+	barOptions: Required<BarOptions>;
 };
 export default class BarChart
 	extends GraphRenderer<WasmBarChart, WasmBarChartInterop>
@@ -216,7 +232,6 @@ export default class BarChart
 				r: 0,
 				g: 0,
 				b: 0,
-				a: 255,
 			},
 			positioning:
 				typeof options.positioning !== "number"
@@ -232,11 +247,28 @@ export default class BarChart
 							right: options.positioning * devicePixelRatio,
 							bottom: options.positioning * devicePixelRatio,
 						},
-			gap: (options.gap ?? 0) * devicePixelRatio,
+			barOptions: {
+				gap: (options.barOptions?.gap ?? 10) * devicePixelRatio,
+				cornerRadius:
+					(options.barOptions?.cornerRadius ?? 10) * devicePixelRatio,
+				hoverScale: options.barOptions?.hoverScale ?? 1.1,
+				color: options.barOptions?.color ?? { r: 255, g: 255, b: 255 },
+				hoverColor: options.barOptions?.hoverColor ?? {
+					r: 150,
+					g: 150,
+					b: 150,
+					a: 127,
+				},
+				selectedColor: options.barOptions?.selectedColor ?? {
+					r: 100,
+					g: 100,
+					b: 255,
+				},
+			},
 			titleFontSize: options.titleFontSize ?? 10,
-			barCornerRadius: (options.barCornerRadius ?? 10) * devicePixelRatio,
 			valueAxis: {
 				width: (options.valueAxis?.width ?? 0) * devicePixelRatio,
+				color: options.valueAxis?.color ?? { r: 255, g: 255, b: 255 },
 				smallestScale:
 					(options.valueAxis?.smallestScale ?? 1) * devicePixelRatio,
 				minPixelDistance:
@@ -244,7 +276,6 @@ export default class BarChart
 			},
 			minWidth: (options.minWidth ?? 1) * devicePixelRatio,
 			minHeight: (options.minHeight ?? 1) * devicePixelRatio,
-			hoverScale: options.hoverScale ?? 1.1,
 		};
 	}
 	updateData(data: BarChartData, timestamp: number) {

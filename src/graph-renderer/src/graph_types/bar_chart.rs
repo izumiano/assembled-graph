@@ -7,7 +7,7 @@ use crate::DefineAnimation;
 use crate::animation::*;
 use crate::graph_types::utils::*;
 use crate::log;
-use crate::utils::NumUtils;
+use crate::utils::*;
 
 #[wasm_struct]
 pub struct DataPoint {
@@ -21,7 +21,7 @@ enum PointerState {
 	Hover,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 enum SelectedState {
 	None { timestamp: f64 },
 	Selected { timestamp: f64 },
@@ -103,8 +103,23 @@ pub struct BarChartLayout {
 	value_axis_layout: ValueAxisLayout,
 }
 
+#[wasm_struct]
+pub struct BarOptions {
+	color: Color,
+	hover_color: Color,
+	selected_color: Color,
+	hover_scale: f32,
+}
+
+#[wasm_struct]
+pub struct BarChartOptions {
+	background_color: Color,
+	bar_options: BarOptions,
+	value_axis_color: Color,
+}
+
 #[wasm_bindgen]
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum ClickingState {
 	None,
 	Holding,
@@ -124,6 +139,10 @@ pub struct BarChart {
 	scale_lines: Vec<ScaleLineObject>,
 	scale_line_count: u32,
 
+	bar_color: Color,
+	bar_hover_color: Color,
+	bar_selected_color: Color,
+
 	bottom: u32,
 	top: u32,
 	left: u32,
@@ -137,6 +156,8 @@ pub struct BarChart {
 	value_axis_width: u32,
 	value_axis_smallest_scale: f32,
 	value_axis_min_pixel_distance: u32,
+
+	value_axis_color: Color,
 
 	hover_scale: f32,
 
@@ -164,7 +185,7 @@ fn handle_data(
 		if index < old_bars.len() {
 			let old_bar = &old_bars[index];
 			start_scale_t = old_bar.height as f32 / graph_height as f32;
-			selected_state = old_bar.selected_state.clone();
+			selected_state = old_bar.selected_state;
 		}
 
 		bars.push(BarData {
@@ -209,11 +230,9 @@ impl BarChart {
 		start_timestamp: f64,
 		width: u32,
 		height: u32,
-		background_color: Color,
-
 		layout: BarChartLayout,
 
-		hover_scale: f32,
+		options: BarChartOptions,
 	) -> BarChart {
 		let size = width * height * 4;
 		let pixels = vec![0; size as usize];
@@ -245,31 +264,29 @@ impl BarChart {
 			start_timestamp,
 			width,
 			height,
-			background_color,
-
+			background_color: options.background_color,
 			bars,
 			scale_lines,
 			scale_line_count,
-
 			bottom: layout.positioning.bottom,
 			top: layout.positioning.top,
 			left: layout.positioning.left,
 			right: layout.positioning.right,
-
 			gap: layout.bar_layout.gap,
 			bar_corner_radius: layout.bar_layout.bar_corner_radius,
 			min_width: layout.bar_layout.min_width,
 			min_height: layout.bar_layout.min_height,
-
 			value_axis_width: layout.value_axis_layout.value_axis_width,
 			value_axis_smallest_scale: layout.value_axis_layout.value_axis_smallest_scale,
 			value_axis_min_pixel_distance: layout.value_axis_layout.value_axis_min_pixel_distance,
-
-			hover_scale,
-
+			hover_scale: options.bar_options.hover_scale,
 			max_val,
 			is_animating: true,
 			selected_bar_index: None,
+			bar_color: options.bar_options.color,
+			bar_hover_color: options.bar_options.hover_color,
+			bar_selected_color: options.bar_options.selected_color,
+			value_axis_color: options.value_axis_color,
 		}
 	}
 
@@ -357,7 +374,7 @@ impl BarChart {
 		for i in 0..self.bars.len() {
 			let bar = &self.bars[i];
 			let corner_radius = min(self.bar_corner_radius, bar.width / 2);
-			let color = bar.color.clone();
+			let color = bar.color;
 			let width = (bar.width as f32 * bar.scale) as u32;
 			let left = (bar.x as i32 - (width as i32 - bar.width as i32) / 2).to_u32();
 			let bar_y = bar.y;
@@ -519,7 +536,7 @@ impl BarChart {
 								timestamp,
 								color_t: AnimationStateData {
 									from: bar.color_t,
-									to: 0.5,
+									to: self.bar_hover_color.a as f32 / 255.,
 								},
 							};
 							bar.clicking_state = ClickingState::Holding;
@@ -580,21 +597,9 @@ impl BarChart {
 			};
 			let animation = Animation::new(&anim_data, timestamp, 200.0, 0.0);
 
-			bar.color = Color {
-				r: 255,
-				g: 255,
-				b: 255,
-				a: 255,
-			}
-			.lerp(
-				Color {
-					r: 100,
-					g: 100,
-					b: 255,
-					a: 255,
-				},
-				animation.get_current().color_t,
-			);
+			bar.color = self
+				.bar_color
+				.lerp(&self.bar_selected_color, animation.get_current().color_t);
 
 			if !animation.is_completed() {
 				all_animations_done = false;
@@ -608,15 +613,7 @@ impl BarChart {
 
 			bar.color_t = animation.get_current().color_t;
 
-			bar.color = bar.color.lerp(
-				Color {
-					r: 150,
-					g: 150,
-					b: 150,
-					a: 255,
-				},
-				bar.color_t,
-			);
+			bar.color = bar.color.lerp(&self.bar_hover_color, bar.color_t);
 
 			log!(bar.color_t);
 		}
@@ -632,17 +629,14 @@ impl BarChart {
 	fn draw_scale_lines(&mut self) {
 		for i in 0..self.scale_line_count {
 			let scale_line = &self.scale_lines[i as usize];
-			self.draw_rect(
+			let mut color = self.value_axis_color;
+			color.a = scale_line.intensity;
+			self.draw_rect_alpha(
 				scale_line.x,
 				scale_line.y,
 				scale_line.width,
 				scale_line.height,
-				&Color {
-					r: scale_line.intensity,
-					g: scale_line.intensity,
-					b: scale_line.intensity,
-					a: 255,
-				},
+				&color,
 			);
 		}
 	}
@@ -690,7 +684,7 @@ impl BarChart {
 			scale_line.y = y;
 			scale_line.width = (self.width as i32 - x_offset as i32).to_u32();
 			scale_line.height = thickness;
-			scale_line.intensity = if modu == 0 { 150 } else { 80 };
+			scale_line.intensity = if modu == 0 { 100 } else { 50 };
 			scale_line.value = value;
 		}
 
@@ -699,7 +693,7 @@ impl BarChart {
 		scale_line.y = self.top;
 		scale_line.width = (self.width as i32 - x_offset as i32).to_u32();
 		scale_line.height = thickness;
-		scale_line.intensity = 200;
+		scale_line.intensity = 255;
 		scale_line.value = self.max_val;
 
 		let scale_line = &mut self.scale_lines[success_line_count as usize];
@@ -750,6 +744,9 @@ impl GraphRenderer for BarChart {
 	}
 	fn draw_rect(&mut self, x: u32, y: u32, width: u32, height: u32, color: &Color) {
 		draw_rect(self, x, y, width, height, color);
+	}
+	fn draw_rect_alpha(&mut self, x: u32, y: u32, width: u32, height: u32, color: &Color) {
+		draw_rect_alpha(self, x, y, width, height, color);
 	}
 	fn draw_circle(&mut self, x: u32, y: u32, radius: u32, color: &Color) {
 		draw_circle(self, x, y, radius, color);

@@ -1,18 +1,19 @@
 use std::cmp::min;
 use wasm_bindgen::prelude::*;
 
-use crate::utils::NumUtils;
+use crate::utils::{NumUtils, lerp};
 
 pub trait GraphRenderer {
 	fn get_mut_pixels(&mut self) -> &mut Vec<u8>;
 	fn get_width(&self) -> u32;
 	fn get_height(&self) -> u32;
 	fn draw_rect(&mut self, x: u32, y: u32, width: u32, height: u32, color: &Color);
+	fn draw_rect_alpha(&mut self, x: u32, y: u32, width: u32, height: u32, color: &Color);
 	#[allow(dead_code)]
 	fn draw_circle(&mut self, x: u32, y: u32, radius: u32, color: &Color);
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[wasm_bindgen]
 pub struct Color {
 	pub r: u8,
@@ -28,7 +29,7 @@ impl Color {
 		Color { r, g, b, a }
 	}
 
-	pub fn lerp(&self, other: Color, t: f32) -> Color {
+	pub fn lerp(&self, other: &Color, t: f32) -> Color {
 		let t = t.clamp(0.0, 1.0);
 
 		Color {
@@ -40,14 +41,16 @@ impl Color {
 	}
 }
 
-pub fn draw_rect(
-	renderer: &mut dyn GraphRenderer,
+pub fn draw_rect<TRenderer>(
+	renderer: &mut TRenderer,
 	x: u32,
 	y: u32,
 	width: u32,
 	height: u32,
 	color: &Color,
-) {
+) where
+	TRenderer: GraphRenderer,
+{
 	let canvas_width = renderer.get_width();
 	let canvas_height = renderer.get_height();
 
@@ -67,8 +70,40 @@ pub fn draw_rect(
 	}
 }
 
+pub fn draw_rect_alpha<TRenderer>(
+	renderer: &mut TRenderer,
+	x: u32,
+	y: u32,
+	width: u32,
+	height: u32,
+	color: &Color,
+) where
+	TRenderer: GraphRenderer,
+{
+	let canvas_width = renderer.get_width();
+	let canvas_height = renderer.get_height();
+
+	let width = min(width as i32, canvas_width as i32 - x as i32).to_u32();
+	let height = min(height as i32, canvas_height as i32 - y as i32).to_u32();
+
+	let pixels = renderer.get_mut_pixels();
+
+	for curr_y in y..(height + y) {
+		for curr_x in x..(width + x) {
+			let i = ((curr_y * canvas_width + curr_x) * 4) as usize;
+			let ratio = color.a as f32 / 255.;
+			pixels[i] = lerp(pixels[i] as f32, color.r as f32, ratio).to_u8();
+			pixels[i + 1] = lerp(pixels[i] as f32, color.r as f32, ratio).to_u8();
+			pixels[i + 2] = lerp(pixels[i] as f32, color.r as f32, ratio).to_u8();
+		}
+	}
+}
+
 #[allow(dead_code)]
-pub fn draw_circle(renderer: &mut dyn GraphRenderer, x: u32, y: u32, radius: u32, color: &Color) {
+pub fn draw_circle<TRenderer>(renderer: &mut TRenderer, x: u32, y: u32, radius: u32, color: &Color)
+where
+	TRenderer: GraphRenderer,
+{
 	let canvas_width = renderer.get_width();
 	let canvas_height = renderer.get_height();
 
