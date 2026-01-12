@@ -50,14 +50,14 @@ interface BarOptions {
 	hoverColor?: Color;
 	selectedColor?: Color;
 	cornerRadius?: number;
+	minWidth?: number;
+	minHeight?: number;
 }
 
 export interface BarChartOptions extends GraphRendererOptions {
 	barOptions?: BarOptions;
 	titleFontSize?: number;
 	valueAxis?: ValueAxisOptions;
-	minWidth?: number;
-	minHeight?: number;
 }
 
 class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
@@ -92,8 +92,8 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 				new WasmBarLayout(
 					options.barOptions.gap,
 					options.barOptions.cornerRadius,
-					options.minWidth,
-					options.minHeight,
+					options.barOptions.minWidth,
+					options.barOptions.minHeight,
 				),
 				new WasmValueAxisLayout(
 					options.valueAxis.width,
@@ -276,6 +276,8 @@ export default class BarChart
 					g: 100,
 					b: 255,
 				},
+				minWidth: (options.barOptions?.minWidth ?? 1) * devicePixelRatio,
+				minHeight: (options.barOptions?.minHeight ?? 1) * devicePixelRatio,
 			},
 			titleFontSize: options.titleFontSize ?? 10,
 			valueAxis: {
@@ -286,8 +288,6 @@ export default class BarChart
 				minPixelDistance:
 					(options.valueAxis?.minPixelDistance ?? 20) * devicePixelRatio,
 			},
-			minWidth: (options.minWidth ?? 1) * devicePixelRatio,
-			minHeight: (options.minHeight ?? 1) * devicePixelRatio,
 		};
 	}
 
