@@ -8,7 +8,14 @@ export function fillTextWithMaxWidth(
 	x: number,
 	y: number,
 	maxWidth: number,
-	options?: { horizontalAlignment?: "left" | "center" | "right" },
+	options?:
+		| {
+				horizontalAlignment?: "left" | "right";
+		  }
+		| {
+				horizontalAlignment: "center";
+				centerPoint?: number;
+		  },
 ) {
 	let textSize = ctx.measureText(title);
 	let showFullText = true;
@@ -25,14 +32,19 @@ export function fillTextWithMaxWidth(
 	}
 
 	switch (options?.horizontalAlignment) {
-		case "center":
-			x += maxWidth / 2 - textSize.width / 2;
+		case "center": {
+			let centerPoint = maxWidth / 2;
+			if (options.centerPoint != null) {
+				centerPoint = options.centerPoint - x;
+			}
+			const left = x;
+			x += centerPoint - textSize.width / 2;
+			x = clamp(x, { min: left, max: left + maxWidth - textSize.width });
 			break;
+		}
 		case "right":
 			x += maxWidth - textSize.width;
 			break;
-	}
-	if (options?.horizontalAlignment) {
 	}
 
 	ctx.fillText(showFullText ? title : `${title}..`, x, y);

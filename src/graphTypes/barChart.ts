@@ -9,7 +9,11 @@ import {
 	Positioning as WasmPositioning,
 	ValueAxisLayout as WasmValueAxisLayout,
 } from "../graph-renderer/pkg/graph_renderer.js";
-import { fillTextWithMaxWidth, roundToNearestMultiple } from "../utils.js";
+import {
+	clamp,
+	fillTextWithMaxWidth,
+	roundToNearestMultiple,
+} from "../utils.js";
 
 import {
 	type Color,
@@ -25,10 +29,12 @@ import { colorToWasmColor } from "./wasmUtils.js";
 
 export interface DataPoint {
 	title: string;
+	displayTitle?: string;
 	value: number;
 }
 
 export type BarChartData = DataPoint[] & GraphData;
+type InternalBarChartData = Required<DataPoint>[] & GraphData;
 
 type ValueAxisOptions = {
 	width?: number;
@@ -186,6 +192,12 @@ function dataToWasmData(data: BarChartData) {
 	return data.map((item) => new WasmDataPoint(item.title, item.value));
 }
 
+function dataToInternalData(data: BarChartData) {
+	return data.map((data) => {
+		return { ...data, displayTitle: data.displayTitle ?? data.title };
+	});
+}
+
 type InternalBarChartOptions = Required<
 	Omit<BarChartOptions, "positioning" | "valueAxis" | "barOptions">
 > & {
@@ -198,7 +210,7 @@ export default class BarChart
 	implements IGraphRenderer
 {
 	private options: InternalBarChartOptions;
-	private data: BarChartData;
+	private data: InternalBarChartData;
 	private onSelectionChange:
 		| ((
 				_: {
@@ -225,7 +237,7 @@ export default class BarChart
 	) {
 		super(canvas);
 
-		this.data = data;
+		this.data = dataToInternalData(data);
 		this.onSelectionChange = onSelectionChange;
 		this.options = {
 			backgroundColor: options.backgroundColor ?? {
@@ -278,7 +290,31 @@ export default class BarChart
 			minHeight: (options.minHeight ?? 1) * devicePixelRatio,
 		};
 	}
-	updateData(data: BarChartData, timestamp: number) {
+
+	private drawTitle(index: number) {
+		const barX = this.wasmGraphRenderer.getBarXAt(index);
+		const barWidth = this.wasmGraphRenderer.getBarWidthAt(index);
+		let x = barX - this.options.barOptions.gap * 0.5;
+		const diff = x - this.options.valueAxis.width;
+		let width = barWidth + this.options.barOptions.gap + (diff < 0 ? diff : 0);
+		x = clamp(x, { min: this.options.valueAxis.width });
+		width = clamp(width, { max: this.width - x });
+		const y = this.height - this.options.positioning.bottom;
+
+		fillTextWithMaxWidth(
+			this.ctx,
+			this.data[index].displayTitle,
+			x / devicePixelRatio,
+			y / devicePixelRatio,
+			width / devicePixelRatio,
+			{
+				horizontalAlignment: "center",
+				centerPoint: (barX + barWidth / 2) / devicePixelRatio,
+			},
+		);
+	}
+
+	public updateData(data: BarChartData, timestamp: number) {
 		if (data === this.data) {
 			return;
 		}
@@ -304,7 +340,7 @@ export default class BarChart
 			return;
 		}
 
-		this.data = data;
+		this.data = dataToInternalData(data);
 		this.wasmGraphRenderer.updateData(dataToWasmData(data), timestamp);
 		this.wasmGraphRenderer.update(timestamp, this.pointer);
 	}
@@ -391,16 +427,9 @@ export default class BarChart
 		this.ctx.font = `${this.options.titleFontSize}px Arial`;
 		this.ctx.fillStyle = "white";
 		const barsLen = this.wasmGraphRenderer.getBarsLen();
+
 		for (let i = 0; i < barsLen; i++) {
-			const width = this.wasmGraphRenderer.getBarWidthAt(i);
-			fillTextWithMaxWidth(
-				this.ctx,
-				this.wasmGraphRenderer.getBarTitleAt(i),
-				this.wasmGraphRenderer.getBarXAt(i) / devicePixelRatio,
-				(this.height - this.options.positioning.bottom) / devicePixelRatio,
-				width / devicePixelRatio,
-				{ horizontalAlignment: "center" },
-			);
+			this.drawTitle(i);
 		}
 	}
 
