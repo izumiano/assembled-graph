@@ -198,6 +198,16 @@ function dataToInternalData(data: BarChartData) {
 	});
 }
 
+export type OnSelectionChangeArgs = {
+	data: DataPoint;
+	positionInfo: { x: number; y: number; width: number; height: number };
+	index: number;
+} | null;
+
+export type OnSelectionChange =
+	| ((args: OnSelectionChangeArgs) => void)
+	| undefined;
+
 type InternalBarChartOptions = Required<
 	Omit<BarChartOptions, "positioning" | "valueAxis" | "barOptions">
 > & {
@@ -214,15 +224,7 @@ export default class BarChart
 	implements IGraphRenderer
 {
 	private data: InternalBarChartData;
-	private onSelectionChange:
-		| ((
-				_: {
-					data: DataPoint;
-					positionInfo: { x: number; y: number; width: number; height: number };
-					index: number;
-				} | null,
-		  ) => void)
-		| undefined;
+	private onSelectionChange: OnSelectionChange;
 
 	private selectedBarIndex: number | undefined;
 
