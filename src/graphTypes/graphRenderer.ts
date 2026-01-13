@@ -151,6 +151,14 @@ export class GraphRenderer<
 	}
 
 	public resize(width: number, height: number) {
+		if (width <= 0 || height <= 0) {
+			console.error("Cannot set canvas dimensions to non-positive value", {
+				width,
+				height,
+			});
+			return;
+		}
+
 		this.canvas.width = width * devicePixelRatio;
 		this.canvas.height = height * devicePixelRatio;
 
@@ -163,12 +171,6 @@ export class GraphRenderer<
 		this.pixelBufferSize = this.width * this.height * 4;
 
 		this.wasmGraphRenderer.resize(this.canvas.width, this.canvas.height);
-		// const pixelsPointer = this.wasmGraphRenderer.getPixelsPtr();
-		// this.pixelsArr = new Uint8ClampedArray(
-		// 	this.wasmMemory.buffer,
-		// 	pixelsPointer,
-		// 	this.width * this.height * 4,
-		// );
 		this.imageData = new ImageData(this.width, this.height);
 	}
 
