@@ -232,7 +232,7 @@ export default class BarChart
 	constructor(
 		canvas: HTMLCanvasElement,
 		data: BarChartData,
-		options: BarChartOptions,
+		options?: BarChartOptions,
 		onSelectionChange?: (
 			_: {
 				data: DataPoint;
@@ -241,6 +241,8 @@ export default class BarChart
 			} | null,
 		) => void,
 	) {
+		options ??= {};
+
 		const internalOptions = {
 			backgroundColor: options.backgroundColor ?? {
 				r: 0,
