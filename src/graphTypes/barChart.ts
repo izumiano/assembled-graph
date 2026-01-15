@@ -231,6 +231,8 @@ export default class BarChart
 
 	constructor(
 		canvas: HTMLCanvasElement,
+		width: number,
+		height: number,
 		data: BarChartData,
 		options?: BarChartOptions,
 		onSelectionChange?: (
@@ -294,7 +296,7 @@ export default class BarChart
 			},
 		};
 
-		super(canvas, internalOptions);
+		super(canvas, width, height, internalOptions);
 
 		this.data = dataToInternalData(data);
 		this.onSelectionChange = onSelectionChange;
@@ -367,12 +369,13 @@ export default class BarChart
 	}
 
 	public dispose() {
+		logVerbose("dispose", this.constructor.name);
 		this.wasmGraphRenderer.wasmGraph.free();
 		this.removeInputEventHandlers();
 	}
 
 	public update(timestamp: number): void {
-		logVerbose("update");
+		logVerbose("update", this.constructor.name);
 		this.wasmGraphRenderer.update(timestamp, this.pointer);
 
 		const selectedBarIndex = this.wasmGraphRenderer.getSelectedBarIndex();
@@ -407,7 +410,11 @@ export default class BarChart
 	}
 
 	public render() {
-		logVerbose("render");
+		logVerbose(
+			"render",
+			{ width: this.width, height: this.height },
+			this.constructor.name,
+		);
 		super.render();
 
 		this.ctx.font = `${this.options.titleFontSize}px Arial`;

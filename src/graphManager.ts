@@ -1,3 +1,4 @@
+import { logVerbose, logWarn } from "#logger";
 import init, { type InitOutput } from "./graph-renderer/pkg/graph_renderer.js";
 import type {
 	GraphRenderer,
@@ -34,7 +35,7 @@ export default class GraphManager {
 	): Promise<GraphManager | null> {
 		const initOutput = await init();
 		if (abortSignal?.aborted) {
-			console.warn("aborted");
+			logWarn("aborted");
 			return null;
 		}
 		const manager = new GraphManager(initOutput);
@@ -48,7 +49,7 @@ export default class GraphManager {
 			await sleepFor(10);
 		}
 		if (abortSignal?.aborted) {
-			console.warn("aborted");
+			logWarn("aborted");
 			return null;
 		}
 
@@ -56,6 +57,7 @@ export default class GraphManager {
 	}
 
 	public dispose() {
+		logVerbose("dispose", this.constructor.name);
 		this.renderers.forEach((renderer) => {
 			renderer.dispose();
 		});
@@ -64,7 +66,7 @@ export default class GraphManager {
 
 	private handleAnimation(timestamp: number, abortSignal?: AbortSignal) {
 		if (abortSignal?.aborted) {
-			console.warn("aborted");
+			logWarn("aborted");
 			return;
 		}
 
@@ -95,6 +97,7 @@ export default class GraphManager {
 		> &
 			IGraphRenderer,
 	>(renderer: TGraphRenderer) {
+		logVerbose("add graph", this.constructor.name);
 		renderer.init(this.initOutput.memory, this.timestamp);
 		renderer.update(this.timestamp);
 		renderer.render();
@@ -115,6 +118,7 @@ export default class GraphManager {
 		> &
 			IGraphRenderer,
 	>(renderer: TGraphRenderer) {
+		logVerbose("remove graph", this.constructor.name);
 		renderer.dispose();
 
 		this.renderers.delete(renderer);

@@ -1,3 +1,4 @@
+import { logError, logVerbose } from "#logger";
 import type { ClickingState } from "../graphManager";
 
 export interface Color {
@@ -97,22 +98,34 @@ export class GraphRenderer<
 		this.inputEventHandlers = {};
 	}
 
-	constructor(canvas: HTMLCanvasElement, options: TOptions) {
+	constructor(
+		canvas: HTMLCanvasElement,
+		width: number,
+		height: number,
+		options: TOptions,
+	) {
 		const ctx = canvas.getContext("2d");
 
 		if (!ctx) {
 			throw new Error("Failed getting canvas rendering context");
 		}
 
-		canvas.style.width = `${canvas.width}px`;
-		canvas.style.height = `${canvas.height}px`;
-		canvas.width = canvas.width * devicePixelRatio;
-		canvas.height = canvas.height * devicePixelRatio;
+		canvas.style.width = `${width}px`;
+		canvas.style.height = `${height}px`;
+		canvas.width = width * devicePixelRatio;
+		canvas.height = height * devicePixelRatio;
 		ctx.scale(devicePixelRatio, devicePixelRatio);
 		this.canvas = canvas;
 		this.ctx = ctx;
 		this.width = canvas.width;
 		this.height = canvas.height;
+		logVerbose({
+			devicePixelRatio,
+			canvas_width: canvas.width,
+			canvas_height: canvas.height,
+			this_width: this.width,
+			this_height: this.height,
+		});
 		this.pixelBufferSize = this.width * this.height * 4;
 		this.imageData = new ImageData(this.width, this.height);
 		this.pointer = { x: -1, y: -1, clickingState: "None" };
@@ -121,7 +134,7 @@ export class GraphRenderer<
 
 	protected _init(memory: WebAssembly.Memory, wasmGraphRenderer: WasmInterop) {
 		if (this.hasInitialized) {
-			console.error("Renderer has already been initialized");
+			logError("Renderer has already been initialized");
 			return;
 		}
 		this.hasInitialized = true;
@@ -141,7 +154,7 @@ export class GraphRenderer<
 			);
 			this.imageData.data.set(this.pixelsArr);
 		} else {
-			console.error("Pointer+Size was outsize the bounds of the pixel buffer", {
+			logError("Pointer+Size was outsize the bounds of the pixel buffer", {
 				pointer,
 				bufferSize: this.pixelBufferSize,
 				memorySize: this.wasmMemory.buffer.byteLength,
@@ -152,24 +165,20 @@ export class GraphRenderer<
 
 	public resize(width: number, height: number) {
 		if (width <= 0 || height <= 0) {
-			console.error("Cannot set canvas dimensions to non-positive value", {
+			logError("Cannot set canvas dimensions to non-positive value", {
 				width,
 				height,
 			});
 			return;
 		}
-
 		this.canvas.width = width * devicePixelRatio;
 		this.canvas.height = height * devicePixelRatio;
-
 		this.canvas.style.width = `${width}px`;
 		this.canvas.style.height = `${height}px`;
 		this.ctx.scale(devicePixelRatio, devicePixelRatio);
-
 		this.width = this.canvas.width;
 		this.height = this.canvas.height;
 		this.pixelBufferSize = this.width * this.height * 4;
-
 		this.wasmGraphRenderer.resize(this.canvas.width, this.canvas.height);
 		this.imageData = new ImageData(this.width, this.height);
 	}
