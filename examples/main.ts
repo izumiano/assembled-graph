@@ -1,14 +1,20 @@
-import { BarChart, GraphManager } from "../dist/index.js";
+import {
+	__assembledGraphLogger__,
+	BarChart,
+	GraphManager,
+} from "../dist/index.js";
 
 const canvas = document.getElementById("graphCanvas") as HTMLCanvasElement;
 const graphInfoElem = document.getElementById("graphInfo") as HTMLElement;
 
-canvas.width = document.body.clientWidth;
-canvas.height = document.body.clientHeight;
+const width = document.body.clientWidth;
+const height = document.body.clientHeight;
 
 const graphManager = await GraphManager.create();
 const graph = new BarChart(
 	canvas,
+	width,
+	height,
 	[
 		{ title: "⭐", value: 50 },
 		{ title: "⭐⭐", value: 30 },
@@ -62,3 +68,5 @@ if (graphManager) {
 		graph.render();
 	};
 }
+
+__assembledGraphLogger__.sendLogs();
