@@ -1,3 +1,5 @@
+import { logError, logVerbose, logWarn, sendLogs } from "#logger";
+
 export { default as GraphManager } from "./graphManager";
 export {
 	type BarChartData,
@@ -9,6 +11,9 @@ export {
 } from "./graphTypes/barChart";
 export { GraphRenderer } from "./graphTypes/graphRenderer";
 
-if (import.meta.env.VITE_VERBOSE_LOG === "true") {
-	console.info("VERBOSE LOGGING ENABLED");
-}
+export const __assembledGraphLogger__ = {
+	logVerbose,
+	logError,
+	logWarn,
+	sendLogs,
+};
