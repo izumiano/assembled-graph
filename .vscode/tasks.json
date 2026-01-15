@@ -2,42 +2,41 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Build -Debug",
-			"dependsOn": ["compileWasm -debug", "build vite"],
+			"label": "dev:build",
+			"dependsOn": ["dev:compileWasm", "build vite"],
 			"dependsOrder": "sequence",
 			"group": {
 				"kind": "build",
 				"isDefault": true
-			},
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared",
-				"showReuseMessage": true,
-				"clear": false
 			}
 		},
 		{
-			"label": "Build -Release",
-			"dependsOn": ["compileWasm -release", "build vite"],
+			"label": "build",
+			"dependsOn": ["compileWasm", "build vite"],
 			"dependsOrder": "sequence",
-			"group": "build",
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared",
-				"showReuseMessage": true,
-				"clear": false
-			}
+			"group": "build"
+		},
+		{
+			"label": "dev:build:verbose",
+			"dependsOn": ["dev:compileWasm:verbose", "build vite"],
+			"dependsOrder": "sequence",
+			"group": "build"
+		},
+		{
+			"label": "build:verbose",
+			"dependsOn": ["compileWasm:verbose", "build vite"],
+			"dependsOrder": "sequence",
+			"group": "build"
 		},
 		{
 			"label": "Start Dev",
 			"dependsOn": ["npm: watchExamples", "npm: typecheck"],
-			"group": "build",
 			"presentation": {
-				"reveal": "always",
 				"panel": "shared",
 				"showReuseMessage": true,
 				"clear": false
-			}
+			},
+			"problemMatcher": []
 		},
 		{
 			"type": "npm",
@@ -48,17 +47,48 @@
 		},
 		{
 			"type": "npm",
+			"script": "typecheck",
+			"problemMatcher": "$tsc-watch",
+			"label": "npm: typecheck",
+			"detail": "tsc --watch --noEmit -p",
+			"isBackground": true,
+			"presentation": {
+				"group": "run-all-group",
+				"reveal": "always",
+				"panel": "dedicated",
+				"showReuseMessage": true,
+				"clear": false
+			}
+		},
+		{
+			"type": "npm",
 			"script": "watchExamples",
 			"label": "npm: watchExamples",
 			"problemMatcher": "$tsc-watch",
 			"isBackground": true,
 			"detail": "start watch examples",
-			"group": "build"
+			"presentation": {
+				"group": "run-all-group",
+				"reveal": "always",
+				"panel": "dedicated",
+				"showReuseMessage": true,
+				"clear": false
+			}
 		},
 		{
 			"type": "npm",
-			"script": "compileWasmDev",
-			"label": "compileWasm -debug",
+			"script": "compileWasm",
+			"label": "compileWasm",
+			"detail": "compile rust to wasm -release",
+			"group": "build",
+			"presentation": {
+				"clear": true
+			}
+		},
+		{
+			"type": "npm",
+			"script": "dev:compileWasm",
+			"label": "dev:compileWasm",
 			"detail": "compile rust to wasm -debug",
 			"group": "build",
 			"presentation": {
@@ -67,9 +97,19 @@
 		},
 		{
 			"type": "npm",
-			"script": "compileWasm",
-			"label": "compileWasm -release",
-			"detail": "compile rust to wasm -release",
+			"script": "compileWasm:verbose",
+			"label": "compileWasm:verbose",
+			"detail": "compile rust to wasm -release with verbose logging",
+			"group": "build",
+			"presentation": {
+				"clear": true
+			}
+		},
+		{
+			"type": "npm",
+			"script": "dev:compileWasm:verbose",
+			"label": "dev:compileWasm:verbose",
+			"detail": "compile rust to wasm -debug with verbose logging",
 			"group": "build",
 			"presentation": {
 				"clear": true
@@ -94,14 +134,6 @@
 				"kind": "test",
 				"isDefault": false
 			}
-		},
-		{
-			"type": "npm",
-			"script": "typecheck",
-			"problemMatcher": ["$tsgo-watch"],
-			"label": "npm: typecheck",
-			"detail": "tsc --watch --noEmit -p",
-			"isBackground": true
 		}
 	]
 }

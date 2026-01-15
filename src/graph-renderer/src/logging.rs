@@ -107,34 +107,69 @@ impl LogWarn for String {
 
 #[macro_export]
 macro_rules! log_format {
-	($title:literal, $($var:expr),*) => {{
-		#[cfg(debug_assertions)]{
-			let mut message = String::from("");
-			$(
-				message += &format!("{}: {:?}, ", stringify!($var), $var);
-			)*
-			format!("[{}] | {message}", $title)
-		}
+	($str:literal) => {{
+		format!("{}", $str)
 	}};
-	($($var:expr),*) => {
-		#[cfg(debug_assertions)]{
-			let mut message = String::from("");
-			$(
-				message += &format!("{}: {:?}, ", stringify!($var), $var);
-			)*
-			message
-		}
-	};
+	($title:literal, $var:expr) => {{
+		let mut message = format!("{}: {:?}", stringify!($var), $var);
+		format!("[{}] | {message}", $title)
+	}};
+	($title:literal, $($var:expr),*) => {{
+		let mut message = String::from("");
+		$(
+			message += &format!("{}: {:?}, ", stringify!($var), $var);
+		)*
+		format!("[{}] | {message}", $title)
+	}};
+	($var:expr) => {{
+		format!("{}: {:?}", stringify!($var), $var)
+	}};
+	($($var:expr),*) => {{
+		let mut message = String::from("");
+		$(
+			message += &format!("{}: {:?}, ", stringify!($var), $var);
+		)*
+		message
+	}};
 }
 
 #[macro_export]
 macro_rules! log {
 	($($x:tt)*) => {
-		#[cfg(debug_assertions)]{{
-			use $crate::log_format;
-			use $crate::logging::*;
-			log_format!($($x)*).log();
+		#[cfg(not(debug_assertions))]{{
+			compile_error!("log!() can only be used in debug mode")
 		}}
+
+		use $crate::log_format;
+		use $crate::logging::*;
+		log_format!($($x)*).log();
+	}
+}
+
+#[macro_export]
+macro_rules! log_info {
+	($($x:tt)*) => {
+		use $crate::log_format;
+		use $crate::logging::*;
+		log_format!($($x)*).log_info();
+	}
+}
+
+#[macro_export]
+macro_rules! log_warn {
+	($($x:tt)*) => {
+		use $crate::log_format;
+		use $crate::logging::*;
+		log_format!($($x)*).log_warn();
+	}
+}
+
+#[macro_export]
+macro_rules! log_error {
+	($($x:tt)*) => {
+		use $crate::log_format;
+		use $crate::logging::*;
+		log_format!($($x)*).log_error();
 	}
 }
 
@@ -142,6 +177,28 @@ macro_rules! log {
 macro_rules! log_debug {
 	($($x:tt)*) => {
 		#[cfg(debug_assertions)]{{
+			use $crate::log_format;
+			use $crate::logging::*;
+			log_format!($($x)*).log_debug();
+		}}
+	}
+}
+
+#[macro_export]
+macro_rules! log_verbose {
+	($($x:tt)*) => {
+		#[cfg(feature = "verbose-log")]{{
+			use $crate::log_format;
+			use $crate::logging::*;
+			log_format!($($x)*).log_debug();
+		}}
+	}
+}
+
+#[macro_export]
+macro_rules! log_debug_verbose {
+	($($x:tt)*) => {
+		#[cfg(all(feature = "verbose-log", debug_assertions))]{{
 			use $crate::log_format;
 			use $crate::logging::*;
 			log_format!($($x)*).log_debug();

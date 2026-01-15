@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 use crate::DefineAnimation;
 use crate::animation::*;
 use crate::graph_types::utils::*;
-use crate::log;
+use crate::log_verbose;
 use crate::utils::*;
 
 #[wasm_struct]
@@ -614,8 +614,6 @@ impl BarChart {
 			bar.color_t = animation.get_current().color_t;
 
 			bar.color = bar.color.lerp(&self.bar_hover_color, bar.color_t);
-
-			log!(bar.color_t);
 		}
 
 		if matches!(clicking_state, ClickingState::JustReleased) && !any_bar_was_clicked {
@@ -714,11 +712,15 @@ impl BarChart {
 		pointer_y: Option<u32>,
 		clicking_state: ClickingState,
 	) {
+		log_verbose!("update");
+
 		self.calculate_scale_lines();
 		self.calculate_bars(timestamp, pointer_x, pointer_y, clicking_state);
 	}
 
 	pub fn render(&mut self) {
+		log_verbose!("render");
+
 		clear_background(
 			&mut self.pixels,
 			self.width,
