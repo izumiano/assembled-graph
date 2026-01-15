@@ -1,7 +1,8 @@
+import { logVerbose } from "#logger";
 import {
 	BarChart as WasmBarChart,
-	BarChartOptions as WasmBarChartOptions,
 	BarChartLayout as WasmBarChartLayout,
+	BarChartOptions as WasmBarChartOptions,
 	BarLayout as WasmBarLayout,
 	BarOptions as WasmBarOptions,
 	ClickingState as WasmClickingState,
@@ -369,6 +370,7 @@ export default class BarChart
 	}
 
 	public update(timestamp: number): void {
+		logVerbose("update");
 		this.wasmGraphRenderer.update(timestamp, this.pointer);
 
 		const selectedBarIndex = this.wasmGraphRenderer.getSelectedBarIndex();
@@ -403,7 +405,7 @@ export default class BarChart
 	}
 
 	public render() {
-		// console.log("render");
+		logVerbose("render");
 		super.render();
 
 		this.ctx.font = `${this.options.titleFontSize}px Arial`;

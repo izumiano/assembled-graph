@@ -15,6 +15,7 @@
 	"scripts": {
 		"typecheck": "tsc --watch --noEmit",
 		"build": "tsc -b && vite build",
+		"dev:build": "tsc -b && vite build --mode development",
 		"watchExamples": "tsc --watch -p examples/tsconfig.json",
 		"buildExamples": "tsc --build examples/tsconfig.json",
 		"compileWasm": "cd src/graph-renderer && wasm-pack build --target web",

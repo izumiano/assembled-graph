@@ -8,3 +8,7 @@ export {
 	type OnSelectionChangeArgs,
 } from "./graphTypes/barChart";
 export { GraphRenderer } from "./graphTypes/graphRenderer";
+
+if (import.meta.env.VITE_VERBOSE_LOG === "true") {
+	console.info("VERBOSE LOGGING ENABLED");
+}

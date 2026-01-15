@@ -19,6 +19,7 @@ examplesDist
 !.vscode/extensions.json
 !.vscode/tasks.json
 !.vscode/settings.json
+!.vscode/launch.json
 .idea
 .DS_Store
 *.suo

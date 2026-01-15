@@ -3,28 +3,24 @@
 	"tasks": [
 		{
 			"label": "dev:build",
-			"dependsOn": ["dev:compileWasm", "build vite"],
-			"dependsOrder": "sequence",
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
+			"dependsOn": ["dev:compileWasm", "Dev:Build Vite"],
+			"dependsOrder": "sequence"
 		},
 		{
 			"label": "build",
-			"dependsOn": ["compileWasm", "build vite"],
+			"dependsOn": ["compileWasm", "Build Vite"],
 			"dependsOrder": "sequence",
 			"group": "build"
 		},
 		{
 			"label": "dev:build:verbose",
-			"dependsOn": ["dev:compileWasm:verbose", "build vite"],
+			"dependsOn": ["dev:compileWasm:verbose", "Dev:Build Vite"],
 			"dependsOrder": "sequence",
 			"group": "build"
 		},
 		{
 			"label": "build:verbose",
-			"dependsOn": ["compileWasm:verbose", "build vite"],
+			"dependsOn": ["compileWasm:verbose", "Build Vite"],
 			"dependsOrder": "sequence",
 			"group": "build"
 		},
@@ -40,8 +36,18 @@
 		},
 		{
 			"type": "npm",
+			"script": "dev:build",
+			"label": "Dev:Build Vite",
+			"isBackground": true,
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"type": "npm",
 			"script": "build",
-			"label": "build vite",
+			"label": "Build Vite",
 			"isBackground": true,
 			"group": "build"
 		},

@@ -1,0 +1,62 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "firefox",
+			"request": "launch",
+			"reAttach": true,
+			"keepProfileChanges": true,
+			"profile": "default",
+			"name": "Debug",
+			"url": "http://localhost:5500",
+			"webRoot": "${workspaceFolder}",
+			"preLaunchTask": "dev:build"
+		},
+		{
+			"type": "firefox",
+			"request": "launch",
+			"reAttach": true,
+			"keepProfileChanges": true,
+			"profile": "default",
+			"name": "Debug:Verbose",
+			"url": "http://localhost:5500",
+			"webRoot": "${workspaceFolder}",
+			"preLaunchTask": "dev:build:verbose"
+		},
+		{
+			"type": "firefox",
+			"request": "launch",
+			"reAttach": true,
+			"keepProfileChanges": true,
+			"profile": "default",
+			"name": "Release",
+			"url": "http://localhost:5500",
+			"webRoot": "${workspaceFolder}",
+			"preLaunchTask": "build"
+		},
+		{
+			"type": "firefox",
+			"request": "launch",
+			"reAttach": true,
+			"keepProfileChanges": true,
+			"profile": "default",
+			"name": "Release:Verbose",
+			"url": "http://localhost:5500",
+			"webRoot": "${workspaceFolder}",
+			"preLaunchTask": "build:verbose"
+		},
+		{
+			"type": "firefox",
+			"request": "attach",
+			"host": "localhost",
+			"name": "Attach"
+		},
+		{
+			"type": "firefox",
+			"request": "launch",
+			"reAttach": true,
+			"name": "Launch add-on",
+			"addonPath": "${workspaceFolder}"
+		}
+	]
+}
