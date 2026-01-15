@@ -5,9 +5,11 @@ import path, {resolve} from "path";
 
 // https://vite.dev/config/
 export default defineConfig(({mode}) => {
+	const dev = mode === "development";
+
 	const aliases: AliasOptions = {"#logger": path.resolve(__dirname, "./src/logger")};
 
-	if(mode === "development"){
+	if(dev){
 		aliases["#devLogger"] = path.resolve(__dirname, "./src/logger");
 	}
 
@@ -16,6 +18,10 @@ export default defineConfig(({mode}) => {
 		base: "/",
 		resolve: {
 			alias: aliases
+		},
+		esbuild: {
+			minifyIdentifiers: !dev,
+			keepNames: dev
 		},
 		build: {
 			lib: {
