@@ -1,4 +1,4 @@
-import { logError, logVerbose } from "#logger";
+import { logError, logVerbose, logVerboseWarn } from "#logger";
 import type { ClickingState } from "../graphManager";
 
 export interface Color {
@@ -108,6 +108,15 @@ export class GraphRenderer<
 
 		if (!ctx) {
 			throw new Error("Failed getting canvas rendering context");
+		}
+
+		if (width < 1) {
+			logVerboseWarn("width has to be >=1", "GraphRenderer", "constructor");
+			width = 1;
+		}
+		if (height < 1) {
+			logVerboseWarn("height has to be >=1", "GraphRenderer", "constructor");
+			height = 1;
 		}
 
 		canvas.style.width = `${width}px`;
