@@ -108,10 +108,10 @@ impl LogWarn for String {
 #[macro_export]
 macro_rules! log_format {
 	($str:literal) => {{
-		format!("{}", $str)
+		$str
 	}};
 	($title:literal, $var:expr) => {{
-		let mut message = format!("{}: {:?}", stringify!($var), $var);
+		let message = format!("{}: {:?}", stringify!($var), $var);
 		format!("[{}] | {message}", $title)
 	}};
 	($title:literal, $($var:expr),*) => {{
@@ -121,8 +121,11 @@ macro_rules! log_format {
 		)*
 		format!("[{}] | {message}", $title)
 	}};
-	($var:expr) => {{
+	($var:ident) => {
 		format!("{}: {:?}", stringify!($var), $var)
+	};
+	($var:expr) => {{
+		$var
 	}};
 	($($var:expr),*) => {{
 		let mut message = String::from("");
@@ -191,6 +194,17 @@ macro_rules! log_verbose {
 			use $crate::log_format;
 			use $crate::logging::*;
 			log_format!($($x)*).log_debug();
+		}}
+	}
+}
+
+#[macro_export]
+macro_rules! log_verbose_priority {
+	($($x:tt)*) => {
+		#[cfg(feature = "verbose-log")]{{
+			use $crate::log_format;
+			use $crate::logging::*;
+			log_format!($($x)*).log();
 		}}
 	}
 }

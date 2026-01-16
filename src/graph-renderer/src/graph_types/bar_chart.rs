@@ -7,8 +7,10 @@ use crate::DefineAnimation;
 use crate::animation::*;
 use crate::graph_types::utils::*;
 use crate::log_verbose;
+use crate::log_verbose_priority;
 use crate::utils::*;
 
+#[derive(Debug)]
 #[wasm_struct]
 pub struct DataPoint {
 	title: String,
@@ -165,6 +167,8 @@ pub struct BarChart {
 
 	is_animating: bool,
 	selected_bar_index: Option<usize>,
+
+	updated_data: bool,
 }
 
 fn handle_data(
@@ -287,6 +291,7 @@ impl BarChart {
 			bar_hover_color: options.bar_options.hover_color,
 			bar_selected_color: options.bar_options.selected_color,
 			value_axis_color: options.value_axis_color,
+			updated_data: false,
 		}
 	}
 
@@ -310,6 +315,10 @@ impl BarChart {
 	}
 
 	pub fn update_data(&mut self, data: Vec<DataPoint>, timestamp: f64) {
+		log_verbose_priority!(format!(
+			"Updating data from {:#?} to {:#?}",
+			self.data, data
+		));
 		let (data, bars, max_val) = handle_data(
 			data,
 			&self.bars,
@@ -320,6 +329,7 @@ impl BarChart {
 		self.bars = bars;
 		self.max_val = max_val;
 		self.start_timestamp = timestamp;
+		self.updated_data = true;
 	}
 
 	pub fn get_bars_len(&self) -> usize {
@@ -424,9 +434,11 @@ impl BarChart {
 
 			if selected {
 				if let SelectedState::Selected { timestamp: _ } = self.bars[i].selected_state {
+					log_verbose_priority!("Deselect bar", i);
 					self.bars[i].selected_state = SelectedState::None { timestamp };
 					self.selected_bar_index = None;
 				} else {
+					log_verbose_priority!("Select bar", i);
 					self.bars[i].selected_state = SelectedState::Selected { timestamp };
 					self.selected_bar_index = Some(index);
 				}
@@ -445,6 +457,7 @@ impl BarChart {
 			);
 
 			if selected {
+				log_verbose_priority!("Deselect bar", i);
 				self.bars[i].selected_state = SelectedState::None { timestamp };
 			}
 		}
@@ -716,6 +729,11 @@ impl BarChart {
 
 		self.calculate_scale_lines();
 		self.calculate_bars(timestamp, pointer_x, pointer_y, clicking_state);
+
+		if self.updated_data {
+			self.is_animating = true;
+			self.updated_data = false;
+		}
 	}
 
 	pub fn render(&mut self) {

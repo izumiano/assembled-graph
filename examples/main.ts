@@ -6,27 +6,26 @@ import {
 
 const canvas = document.getElementById("graphCanvas") as HTMLCanvasElement;
 const graphInfoElem = document.getElementById("graphInfo") as HTMLElement;
+const addBarButton = document.getElementById("addBarButton") as HTMLElement;
+const removeBarButton = document.getElementById(
+	"removeBarButton",
+) as HTMLElement;
 
-const width = document.body.clientWidth;
-const height = document.body.clientHeight;
+const canvasContainer = canvas.parentElement as HTMLElement;
+
+const width = canvasContainer.clientWidth;
+const height = canvasContainer.clientHeight;
+
+const data: { title: string; value: number }[] = [
+	{ title: "", value: Math.random() * 100 },
+];
 
 const graphManager = await GraphManager.create();
 const graph = new BarChart(
 	canvas,
 	width,
 	height,
-	[
-		{ title: "⭐", value: 50 },
-		{ title: "⭐⭐", value: 30 },
-		{ title: "⭐⭐⭐", value: 3 },
-		{ title: "⭐⭐⭐⭐", value: 0 },
-		{ title: "⭐⭐⭐⭐⭐", value: 18 },
-		{ title: "⭐", value: 80 },
-		{ title: "⭐⭐", value: 0 },
-		{ title: "⭐⭐⭐", value: 40 },
-		{ title: "⭐⭐⭐⭐", value: 13 },
-		{ title: "⭐⭐⭐⭐⭐", value: 18 },
-	],
+	data,
 	{
 		backgroundColor: { r: 10, g: 5, b: 40 },
 		barOptions: {
@@ -34,6 +33,7 @@ const graph = new BarChart(
 			minWidth: 5,
 			minHeight: 7,
 			hoverScale: 1.1,
+			gap: 20,
 		},
 		titleFontSize: 15,
 		valueAxis: { width: 40, minPixelDistance: 35 },
@@ -54,6 +54,10 @@ const graph = new BarChart(
 		let left = positionInfo.x - rect.width;
 		if (left < 0) {
 			left = positionInfo.x + positionInfo.width;
+
+			if (left + rect.width > canvasContainer.clientWidth) {
+				left = positionInfo.x;
+			}
 		}
 		graphInfoElem.style.left = `${left}px`;
 		graphInfoElem.style.top = `${positionInfo.y}px`;
@@ -62,10 +66,25 @@ const graph = new BarChart(
 if (graphManager) {
 	graphManager.addGraph(graph);
 
-	window.onresize = () => {
-		graph.resize(document.body.clientWidth, document.body.clientHeight);
-		graph.update(graphManager.getTimestamp());
-		graph.render();
+	const resizeObserver = new ResizeObserver((entries) => {
+		for (const entry of entries) {
+			const { width, height } = entry.contentRect;
+			graph.resize(width, height);
+			graph.update(graphManager.getTimestamp());
+			graph.render();
+		}
+	});
+	resizeObserver.observe(canvasContainer);
+
+	addBarButton.onclick = () => {
+		data.push({ title: "", value: Math.random() * 100 });
+		graph.updateData(data, graphManager.getTimestamp());
+	};
+
+	removeBarButton.onclick = () => {
+		data.pop();
+		console.log(data.length);
+		graph.updateData(data, graphManager.getTimestamp());
 	};
 }
 

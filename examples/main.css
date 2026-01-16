@@ -3,10 +3,22 @@ body {
 	width: 100vw;
 	height: 100vh;
 	overflow: hidden;
+
+	display: flex;
+	flex-direction: column;
+
+	background-color: rgb(10, 5, 40);
 }
 
 #graphContainer {
 	position: relative;
+	flex: 1 1 auto;
+	overflow: hidden;
+}
+
+#buttonContainer {
+	flex: 0 1 auto;
+	margin: 1rem;
 }
 
 #graphInfo {

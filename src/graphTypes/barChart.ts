@@ -330,25 +330,24 @@ export default class BarChart
 			return;
 		}
 
-		if (data.length !== this.data.length) {
-			throw new Error("Changing length of data is not yet supported");
-		}
+		if (data.length === this.data.length) {
+			let hasDifference = false;
+			for (let i = 0; i < data.length; i++) {
+				const newDataPoint = data[i];
+				const oldDataPoint = this.data[i];
 
-		let hasDifference = false;
-		for (let i = 0; i < data.length; i++) {
-			const newDataPoint = data[i];
-			const oldDataPoint = this.data[i];
-
-			if (
-				newDataPoint.value !== oldDataPoint.value ||
-				newDataPoint.title !== oldDataPoint.title
-			) {
-				hasDifference = true;
-				break;
+				if (
+					!oldDataPoint ||
+					newDataPoint.value !== oldDataPoint.value ||
+					newDataPoint.title !== oldDataPoint.title
+				) {
+					hasDifference = true;
+					break;
+				}
 			}
-		}
-		if (!hasDifference) {
-			return;
+			if (!hasDifference) {
+				return;
+			}
 		}
 
 		this.data = dataToInternalData(data);
