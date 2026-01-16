@@ -10,19 +10,15 @@ export function _internalLog(...obj: unknown[]) {
 }
 
 export function logError(...obj: unknown[]) {
-	if (import.meta.env.VITE_VERBOSE_LOG === "true") {
-		console.error("[ERROR]", ...obj);
+	console.error("[ERROR]", ...obj);
 
-		handleExternalLogs("[ERROR]", ...obj);
-	}
+	handleExternalLogs("[ERROR]", ...obj);
 }
 
 export function logWarn(...obj: unknown[]) {
-	if (import.meta.env.VITE_VERBOSE_LOG === "true") {
-		console.warn("[WARN]", ...obj);
+	console.warn("[WARN]", ...obj);
 
-		handleExternalLogs("[WARN]", ...obj);
-	}
+	handleExternalLogs("[WARN]", ...obj);
 }
 
 export function logVerbose(...obj: unknown[]) {
@@ -30,6 +26,14 @@ export function logVerbose(...obj: unknown[]) {
 		console.debug("[VERBOSE]", ...obj);
 
 		handleExternalLogs("[VERBOSE]", ...obj);
+	}
+}
+
+export function logVerboseWarn(...obj: unknown[]) {
+	if (import.meta.env.VITE_VERBOSE_LOG === "true") {
+		console.warn("[VERBOSE]", ...obj);
+
+		handleExternalLogs("[VERBOSE_WARN]", ...obj);
 	}
 }
 
