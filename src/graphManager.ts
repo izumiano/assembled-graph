@@ -145,6 +145,7 @@ export default class GraphManager {
 		};
 		this.pointerStart = { touchId };
 		renderer.update(this.timestamp);
+		renderer.onPointerDown(e.pointerType);
 	}
 
 	private handleMoveInput(
@@ -167,6 +168,7 @@ export default class GraphManager {
 		};
 
 		renderer.update(this.timestamp);
+		renderer.onPointerMove(e.pointerType);
 	}
 
 	private handleEndInput(
@@ -193,6 +195,7 @@ export default class GraphManager {
 	) {
 		renderer.pointer = { x: -1, y: -1, clickingState: "None" };
 		renderer.update(this.timestamp);
+		renderer.onPointerLeave();
 	}
 
 	private addInputHandling(

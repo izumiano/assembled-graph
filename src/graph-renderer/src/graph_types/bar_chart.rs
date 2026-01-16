@@ -167,6 +167,7 @@ pub struct BarChart {
 
 	is_animating: bool,
 	selected_bar_index: Option<usize>,
+	hovered_bar_index: Option<usize>,
 
 	updated_data: bool,
 }
@@ -287,6 +288,7 @@ impl BarChart {
 			max_val,
 			is_animating: true,
 			selected_bar_index: None,
+			hovered_bar_index: None,
 			bar_color: options.bar_options.color,
 			bar_hover_color: options.bar_options.hover_color,
 			bar_selected_color: options.bar_options.selected_color,
@@ -378,6 +380,10 @@ impl BarChart {
 
 	pub fn get_selected_bar_index(&self) -> Option<usize> {
 		self.selected_bar_index
+	}
+
+	pub fn get_hovered_bar_index(&self) -> Option<usize> {
+		self.hovered_bar_index
 	}
 
 	fn draw_bars(&mut self) {
@@ -492,26 +498,27 @@ impl BarChart {
 
 		let mut all_animations_done = true;
 		let mut any_bar_was_clicked = false;
+		self.hovered_bar_index = None;
 
-		for x in 0..bars_count {
-			let bar = &mut self.bars[x];
+		for bar_index in 0..bars_count {
+			let bar = &mut self.bars[bar_index];
 
 			let anim_data = BarHeightAnimData {
 				timestamp: self.start_timestamp,
 				scale_t: AnimationStateData { from: 0.0, to: 1.0 },
 			};
-			let animation = Animation::new(&anim_data, timestamp, 500.0, 100.0 * x as f64);
+			let animation = Animation::new(&anim_data, timestamp, 500.0, 100.0 * bar_index as f64);
 
 			if !animation.is_completed() {
 				all_animations_done = false;
 			}
 
-			let x_pos = (x as f32 * base_width + left as f32).to_u32();
+			let x_pos = (bar_index as f32 * base_width + left as f32).to_u32();
 			let width = unclamped_width.max(self.min_width as f32).to_u32();
 
 			let scale_t = animation.get_current().scale_t;
 			let full_height = max(
-				(height as f32 * self.data[x].value).to_u32(),
+				(height as f32 * self.data[bar_index].value).to_u32(),
 				self.min_height,
 			) as f32;
 			let height = lerp(bar.start_scale_t * height as f32, full_height, scale_t).to_u32();
@@ -529,6 +536,8 @@ impl BarChart {
 				&& pointer_y >= y_pos
 				&& pointer_y <= y_pos + height
 			{
+				self.hovered_bar_index = Some(bar_index);
+
 				if let PointerState::Hover = bar.pointer_state {
 				} else {
 					bar.pointer_state = PointerState::Hover;
@@ -565,7 +574,7 @@ impl BarChart {
 						};
 						bar.clicking_state = ClickingState::JustReleased;
 
-						self.toggle_bar_selection_at(x, timestamp);
+						self.toggle_bar_selection_at(bar_index, timestamp);
 						any_bar_was_clicked = true;
 					}
 					_ => {}
@@ -591,7 +600,7 @@ impl BarChart {
 				bar.clicking_state = ClickingState::None;
 			}
 
-			let bar = &mut self.bars[x];
+			let bar = &mut self.bars[bar_index];
 
 			let animation = Animation::new(&bar.hover_anim, timestamp, 200.0, 0.0);
 

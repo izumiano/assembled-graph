@@ -187,6 +187,9 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	getSelectedBarIndex() {
 		return this.wasmGraph.get_selected_bar_index();
 	}
+	getHoveredBarIndex() {
+		return this.wasmGraph.get_hovered_bar_index();
+	}
 }
 
 function dataToWasmData(data: BarChartData) {
@@ -201,13 +204,27 @@ function dataToInternalData(data: BarChartData) {
 
 export type OnSelectionChangeArgs = {
 	data: DataPoint;
-	positionInfo: { x: number; y: number; width: number; height: number };
+	positionInfo?: { x: number; y: number; width: number; height: number } | null;
 	index: number;
 } | null;
+type OnSelectionChange = ((args: OnSelectionChangeArgs) => void) | undefined;
 
-export type OnSelectionChange =
-	| ((args: OnSelectionChangeArgs) => void)
-	| undefined;
+export type OnHoverArgs = {
+	data: DataPoint;
+	positionInfo?: { x: number; y: number; width: number; height: number } | null;
+	pointer: { x: number; y: number; type: string };
+	index: number;
+} | null;
+type OnHover = ((args: OnHoverArgs) => void) | undefined;
+
+type PointerCallback<T> =
+	| { func: T; includePositionInfo?: false }
+	| { func: Exclude<T, undefined>; includePositionInfo: true };
+
+export interface BarChartCallbacks {
+	onSelectionChange?: PointerCallback<OnSelectionChange>;
+	onHover?: PointerCallback<OnHover>;
+}
 
 type InternalBarChartOptions = Required<
 	Omit<BarChartOptions, "positioning" | "valueAxis" | "barOptions">
@@ -225,9 +242,14 @@ export default class BarChart
 	implements IGraphRenderer
 {
 	private data: InternalBarChartData;
-	private onSelectionChange: OnSelectionChange;
 
+	private onSelectionChange: OnSelectionChange;
+	private onSelectionChangeIncludePositionInfo?: boolean;
 	private selectedBarIndex: number | undefined;
+
+	private onHover: OnHover;
+	private onHoverIncludePositionInfo?: boolean;
+	private hoveredBarIndex?: number;
 
 	constructor(
 		canvas: HTMLCanvasElement,
@@ -235,13 +257,7 @@ export default class BarChart
 		height: number,
 		data: BarChartData,
 		options?: BarChartOptions,
-		onSelectionChange?: (
-			_: {
-				data: DataPoint;
-				positionInfo: { x: number; y: number; width: number; height: number };
-				index: number;
-			} | null,
-		) => void,
+		callbacks?: BarChartCallbacks,
 	) {
 		options ??= {};
 
@@ -299,7 +315,20 @@ export default class BarChart
 		super(canvas, width, height, internalOptions);
 
 		this.data = dataToInternalData(data);
-		this.onSelectionChange = onSelectionChange;
+		this.onSelectionChange = callbacks?.onSelectionChange?.func;
+		this.onSelectionChangeIncludePositionInfo =
+			callbacks?.onSelectionChange?.includePositionInfo;
+		this.onHover = callbacks?.onHover?.func;
+		this.onHoverIncludePositionInfo = callbacks?.onHover?.includePositionInfo;
+	}
+
+	public getPositionInfoForBarAt(index: number) {
+		return {
+			x: this.wasmGraphRenderer.getBarXAt(index) / devicePixelRatio,
+			y: this.wasmGraphRenderer.getBarYAt(index) / devicePixelRatio,
+			width: this.wasmGraphRenderer.getBarWidthAt(index) / devicePixelRatio,
+			height: this.wasmGraphRenderer.getBarHeightAt(index) / devicePixelRatio,
+		};
 	}
 
 	private drawTitle(index: number) {
@@ -373,39 +402,72 @@ export default class BarChart
 		this.removeInputEventHandlers();
 	}
 
-	public update(timestamp: number): void {
-		logVerbose("update", this.constructor.name);
-		this.wasmGraphRenderer.update(timestamp, this.pointer);
+	public onPointerDown(pointerType: string) {
+		if (pointerType !== "mouse") {
+			this.onPointerMove(pointerType);
+		}
 
 		const selectedBarIndex = this.wasmGraphRenderer.getSelectedBarIndex();
 
-		if (selectedBarIndex !== this.selectedBarIndex) {
-			this.selectedBarIndex = selectedBarIndex;
-
-			this.onSelectionChange?.(
-				selectedBarIndex != null && this.data.length >= selectedBarIndex
-					? {
-							// biome-ignore lint/style/noNonNullAssertion: <we are checking length>
-							data: this.data[selectedBarIndex]!,
-							positionInfo: {
-								x:
-									this.wasmGraphRenderer.getBarXAt(selectedBarIndex) /
-									devicePixelRatio,
-								y:
-									this.wasmGraphRenderer.getBarYAt(selectedBarIndex) /
-									devicePixelRatio,
-								width:
-									this.wasmGraphRenderer.getBarWidthAt(selectedBarIndex) /
-									devicePixelRatio,
-								height:
-									this.wasmGraphRenderer.getBarHeightAt(selectedBarIndex) /
-									devicePixelRatio,
-							},
-							index: selectedBarIndex,
-						}
-					: null,
-			);
+		if (selectedBarIndex === this.selectedBarIndex || !this.onSelectionChange) {
+			return;
 		}
+		this.selectedBarIndex = selectedBarIndex;
+
+		if (selectedBarIndex == null || selectedBarIndex >= this.data.length) {
+			this.onSelectionChange(null);
+			return;
+		}
+
+		this.onSelectionChange({
+			data: this.data[selectedBarIndex],
+			positionInfo: this.onSelectionChangeIncludePositionInfo
+				? this.getPositionInfoForBarAt(selectedBarIndex)
+				: null,
+			index: selectedBarIndex,
+		});
+	}
+
+	public onPointerMove(pointerType: string) {
+		const hoveredBarIndex = this.wasmGraphRenderer.getHoveredBarIndex();
+		if (!this.onHover) {
+			return;
+		}
+
+		if (hoveredBarIndex == null) {
+			if (this.hoveredBarIndex != null) {
+				this.onHover(null);
+				this.hoveredBarIndex = undefined;
+			}
+			return;
+		}
+
+		if (hoveredBarIndex >= this.data.length) {
+			return;
+		}
+		this.hoveredBarIndex = hoveredBarIndex;
+		this.onHover({
+			data: this.data[hoveredBarIndex],
+			positionInfo: this.onHoverIncludePositionInfo
+				? this.getPositionInfoForBarAt(hoveredBarIndex)
+				: null,
+			index: hoveredBarIndex,
+			pointer: {
+				x: this.pointer.x / devicePixelRatio,
+				y: this.pointer.y / devicePixelRatio,
+				type: pointerType,
+			},
+		});
+	}
+
+	public onPointerLeave() {
+		this.onHover?.(null);
+		this.hoveredBarIndex = undefined;
+	}
+
+	public update(timestamp: number) {
+		logVerbose("update", this.constructor.name);
+		this.wasmGraphRenderer.update(timestamp, this.pointer);
 	}
 
 	public render() {

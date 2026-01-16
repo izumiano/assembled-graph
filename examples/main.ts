@@ -11,13 +11,17 @@ const removeBarButton = document.getElementById(
 	"removeBarButton",
 ) as HTMLElement;
 
+function randomInt() {
+	return Math.floor(Math.random() * 100 + 0.5);
+}
+
 const canvasContainer = canvas.parentElement as HTMLElement;
 
 const width = canvasContainer.clientWidth;
 const height = canvasContainer.clientHeight;
 
-const data: { title: string; value: number }[] = [
-	{ title: "", value: Math.random() * 100 },
+const data: { title: string; displayTitle?: string; value: number }[] = [
+	{ title: "0", displayTitle: "", value: randomInt() },
 ];
 
 const graphManager = await GraphManager.create();
@@ -33,34 +37,43 @@ const graph = new BarChart(
 			minWidth: 5,
 			minHeight: 7,
 			hoverScale: 1.1,
-			gap: 20,
+			gap: 50,
 		},
 		titleFontSize: 15,
 		valueAxis: { width: 40, minPixelDistance: 35 },
 		positioning: { bottom: 30, top: 20, left: 10, right: 10 },
 	},
-	(info) => {
-		if (!info) {
-			graphInfoElem.classList.add("hidden");
-			return;
-		}
-		graphInfoElem.classList.remove("hidden");
+	{
+		onHover: {
+			func: (info) => {
+				console.log(info);
+				if (!info) {
+					graphInfoElem.classList.add("hidden");
+					return;
+				}
+				graphInfoElem.classList.remove("hidden");
 
-		const { data, positionInfo } = info;
+				const { data, pointer } = info;
 
-		graphInfoElem.innerText = data.title + data.value;
+				graphInfoElem.innerText = `${data.title}: ${data.value}`;
 
-		const rect = graphInfoElem.getBoundingClientRect();
-		let left = positionInfo.x - rect.width;
-		if (left < 0) {
-			left = positionInfo.x + positionInfo.width;
+				const rect = graphInfoElem.getBoundingClientRect();
 
-			if (left + rect.width > canvasContainer.clientWidth) {
-				left = positionInfo.x;
-			}
-		}
-		graphInfoElem.style.left = `${left}px`;
-		graphInfoElem.style.top = `${positionInfo.y}px`;
+				let left = pointer.x;
+
+				if (left + rect.width > canvasContainer.clientWidth) {
+					left = canvasContainer.clientWidth - rect.width;
+				}
+
+				let top = pointer.y - rect.height * (pointer.type === "touch" ? 2 : 1);
+				if (top + canvasContainer.offsetTop < 0) {
+					top = -canvasContainer.offsetTop;
+				}
+
+				graphInfoElem.style.left = `${left}px`;
+				graphInfoElem.style.top = `${top}px`;
+			},
+		},
 	},
 );
 if (graphManager) {
@@ -77,13 +90,16 @@ if (graphManager) {
 	resizeObserver.observe(canvasContainer);
 
 	addBarButton.onclick = () => {
-		data.push({ title: "", value: Math.random() * 100 });
+		data.push({
+			title: `${data.length}`,
+			displayTitle: "",
+			value: randomInt(),
+		});
 		graph.updateData(data, graphManager.getTimestamp());
 	};
 
 	removeBarButton.onclick = () => {
 		data.pop();
-		console.log(data.length);
 		graph.updateData(data, graphManager.getTimestamp());
 	};
 }

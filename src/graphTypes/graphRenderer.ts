@@ -209,6 +209,9 @@ export interface IGraphRenderer {
 	render(): void;
 	updateData(data: GraphData, timestamp: number): void;
 	isAnimating(): boolean;
+	onPointerDown(pointerType: string): void;
+	onPointerMove(pointerType: string): void;
+	onPointerLeave(): void;
 	dispose(): void;
 	removeInputEventHandlers(): void;
 }
