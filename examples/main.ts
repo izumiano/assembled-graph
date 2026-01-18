@@ -21,7 +21,8 @@ const width = canvasContainer.clientWidth;
 const height = canvasContainer.clientHeight;
 
 const data: { title: string; displayTitle?: string; value: number }[] = [
-	{ title: "0", displayTitle: "", value: randomInt() },
+	{ title: "0", displayTitle: "", value: 5 },
+	{ title: "1", displayTitle: "", value: 5 },
 ];
 
 const graphManager = await GraphManager.create();
@@ -41,12 +42,11 @@ const graph = new BarChart(
 		},
 		titleFontSize: 15,
 		valueAxis: { width: 40, minPixelDistance: 35 },
-		positioning: { bottom: 30, top: 20, left: 10, right: 10 },
+		positioning: { bottom: 30, top: 20, left: 10, right: 20 },
 	},
 	{
 		onHover: {
 			func: (info) => {
-				console.log(info);
 				if (!info) {
 					graphInfoElem.classList.add("hidden");
 					return;
@@ -83,8 +83,10 @@ if (graphManager) {
 		for (const entry of entries) {
 			const { width, height } = entry.contentRect;
 			graph.resize(width, height);
-			graph.update(graphManager.getTimestamp());
-			graph.render();
+			const timestamp = graphManager.getTimestamp();
+			graph.update(timestamp);
+			// graph.render(timestamp);
+			graph.render(timestamp);
 		}
 	});
 	resizeObserver.observe(canvasContainer);

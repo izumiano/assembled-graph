@@ -10,14 +10,13 @@ use crate::log_verbose;
 use crate::log_verbose_priority;
 use crate::utils::*;
 
-#[derive(Debug)]
 #[wasm_struct]
 pub struct DataPoint {
 	title: String,
 	value: f32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum PointerState {
 	None,
 	Hover,
@@ -332,6 +331,38 @@ impl BarChart {
 		self.max_val = max_val;
 		self.start_timestamp = timestamp;
 		self.updated_data = true;
+	}
+
+	pub fn get_bars_vertices(&self) -> Box<[f32]> {
+		// self.bars.clone()
+		let mut vertices = vec![0.; self.bars.len() * 12].into_boxed_slice();
+
+		for (i, bar) in self.bars.iter().enumerate() {
+			let vert_index = i * 12;
+
+			let width = (bar.width as f32 * bar.scale) as u32;
+			let left = bar.x as f32 - (width as f32 - bar.width as f32) / 2.;
+
+			let left = (left / self.width as f32) * 2. - 1.;
+			let right = ((bar.x as f32 + width as f32) / self.width as f32) * 2. - 1.;
+			let bottom = -(((bar.y as f32 + bar.height as f32) / self.height as f32) * 2. - 1.);
+			let top = -((bar.y as f32 / self.height as f32) * 2. - 1.);
+			vertices[vert_index] = left;
+			vertices[vert_index + 1] = bottom;
+			vertices[vert_index + 2] = left;
+			vertices[vert_index + 3] = top;
+			vertices[vert_index + 4] = right;
+			vertices[vert_index + 5] = top;
+
+			vertices[vert_index + 6] = right;
+			vertices[vert_index + 7] = bottom;
+			vertices[vert_index + 8] = left;
+			vertices[vert_index + 9] = bottom;
+			vertices[vert_index + 10] = right;
+			vertices[vert_index + 11] = top;
+		}
+
+		vertices
 	}
 
 	pub fn get_bars_len(&self) -> usize {

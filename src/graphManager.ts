@@ -75,7 +75,7 @@ export default class GraphManager {
 				return;
 			}
 			renderer.update(timestamp);
-			renderer.render();
+			renderer.render(timestamp);
 		});
 
 		this.timestamp = timestamp;
@@ -100,7 +100,7 @@ export default class GraphManager {
 		logVerbose("add graph", this.constructor.name);
 		renderer.init(this.initOutput.memory, this.timestamp);
 		renderer.update(this.timestamp);
-		renderer.render();
+		renderer.render(this.timestamp);
 
 		const canvas = renderer.getCanvas();
 		this.addInputHandling(canvas, renderer);

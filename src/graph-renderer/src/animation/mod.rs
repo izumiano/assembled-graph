@@ -51,7 +51,7 @@ fn ease_out_sine(x: f64) -> f32 {
 	((x * PI) / 2.0).sin() as f32
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct AnimationStateData {
 	pub from: f32,
 	pub to: f32,
@@ -60,13 +60,13 @@ pub struct AnimationStateData {
 #[macro_export]
 macro_rules! DefineAnimation {
 	($name:ident, $name2:ident, $($field_name:ident),*) => {
-		#[derive(Debug)]
+		#[derive(Debug, Clone)]
 		struct $name {
 			timestamp: f64,
 			$($field_name: AnimationStateData),*
 		}
 
-		#[derive(Debug)]
+		#[derive(Debug, Clone)]
 		struct $name2 {
 			$($field_name: f32),*
 		}

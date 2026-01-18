@@ -9,7 +9,7 @@ export {
 	default as BarChart,
 	type OnHoverArgs,
 	type OnSelectionChangeArgs,
-} from "./graphTypes/barChart";
+} from "./graphTypes/barChart/barChart";
 export { GraphRenderer } from "./graphTypes/graphRenderer";
 
 export const __assembledGraphLogger__ = {

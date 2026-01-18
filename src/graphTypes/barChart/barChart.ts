@@ -9,12 +9,15 @@ import {
 	DataPoint as WasmDataPoint,
 	Positioning as WasmPositioning,
 	ValueAxisLayout as WasmValueAxisLayout,
-} from "../graph-renderer/pkg/graph_renderer.js";
-import {
-	clamp,
-	fillTextWithMaxWidth,
-	roundToNearestMultiple,
-} from "../utils.js";
+} from "../../graph-renderer/pkg/graph_renderer.js";
+import { updatePositionsBuffer } from "../../webGL.js";
+import fsSource from "./barChart.frag?raw";
+import vsSource from "./barChart.vert?raw";
+// import {
+// 	clamp,
+// 	fillTextWithMaxWidth,
+// 	roundToNearestMultiple,
+// } from "../utils.js";
 
 import {
 	type Color,
@@ -25,8 +28,8 @@ import {
 	type PointerType,
 	type Positioning,
 	type WasmGraphRendererInterop,
-} from "./graphRenderer";
-import { colorToWasmColor } from "./wasmUtils.js";
+} from "../graphRenderer.js";
+import { colorToWasmColor } from "../wasmUtils.js";
 
 export interface DataPoint {
 	title: string;
@@ -166,6 +169,9 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	getScaleLineXAt(i: number) {
 		return this.wasmGraph.get_scale_line_x_at(i);
 	}
+	getBarsVertices() {
+		return this.wasmGraph.get_bars_vertices();
+	}
 	getBarsLen() {
 		return this.wasmGraph.get_bars_len();
 	}
@@ -266,6 +272,7 @@ export default class BarChart
 				r: 0,
 				g: 0,
 				b: 0,
+				a: 255,
 			},
 			positioning:
 				typeof options.positioning !== "number"
@@ -312,7 +319,7 @@ export default class BarChart
 			},
 		};
 
-		super(canvas, width, height, internalOptions);
+		super(canvas, width, height, vsSource, fsSource, internalOptions);
 
 		this.data = dataToInternalData(data);
 		this.onSelectionChange = callbacks?.onSelectionChange?.func;
@@ -331,28 +338,28 @@ export default class BarChart
 		};
 	}
 
-	private drawTitle(index: number) {
-		const barX = this.wasmGraphRenderer.getBarXAt(index);
-		const barWidth = this.wasmGraphRenderer.getBarWidthAt(index);
-		let x = barX - this.options.barOptions.gap * 0.5;
-		const diff = x - this.options.valueAxis.width;
-		let width = barWidth + this.options.barOptions.gap + (diff < 0 ? diff : 0);
-		x = clamp(x, { min: this.options.valueAxis.width });
-		width = clamp(width, { max: this.width - x });
-		const y = this.height - this.options.positioning.bottom;
+	// private drawTitle(index: number) {
+	// 	const barX = this.wasmGraphRenderer.getBarXAt(index);
+	// 	const barWidth = this.wasmGraphRenderer.getBarWidthAt(index);
+	// 	let x = barX - this.options.barOptions.gap * 0.5;
+	// 	const diff = x - this.options.valueAxis.width;
+	// 	let width = barWidth + this.options.barOptions.gap + (diff < 0 ? diff : 0);
+	// 	x = clamp(x, { min: this.options.valueAxis.width });
+	// 	width = clamp(width, { max: this.width - x });
+	// 	const y = this.height - this.options.positioning.bottom;
 
-		fillTextWithMaxWidth(
-			this.ctx,
-			this.data[index].displayTitle,
-			x / devicePixelRatio,
-			y / devicePixelRatio,
-			width / devicePixelRatio,
-			{
-				horizontalAlignment: "center",
-				centerPoint: (barX + barWidth / 2) / devicePixelRatio,
-			},
-		);
-	}
+	// 	// fillTextWithMaxWidth(
+	// 	// 	this.ctx,
+	// 	// 	this.data[index].displayTitle,
+	// 	// 	x / devicePixelRatio,
+	// 	// 	y / devicePixelRatio,
+	// 	// 	width / devicePixelRatio,
+	// 	// 	{
+	// 	// 		horizontalAlignment: "center",
+	// 	// 		centerPoint: (barX + barWidth / 2) / devicePixelRatio,
+	// 	// 	},
+	// 	// );
+	// }
 
 	public updateData(data: BarChartData, timestamp: number) {
 		if (data === this.data) {
@@ -468,47 +475,51 @@ export default class BarChart
 	public update(timestamp: number) {
 		logVerbose("update", this.constructor.name);
 		this.wasmGraphRenderer.update(timestamp, this.pointer);
+
+		const vertexArr = this.wasmGraphRenderer.getBarsVertices();
+
+		updatePositionsBuffer(this.ctx, vertexArr, this.glBuffers.positions);
 	}
 
-	public render() {
+	public render(timestamp: number) {
 		logVerbose(
 			"render",
 			{ width: this.width, height: this.height },
 			this.constructor.name,
 		);
-		super.render();
+		super.render(timestamp);
 
-		this.ctx.font = `${this.options.titleFontSize}px Arial`;
-		this.ctx.fillStyle = "white";
-		const scaleLinesLen = this.wasmGraphRenderer.getScaleLinesCount();
-		for (let i = 0; i < scaleLinesLen; i++) {
-			fillTextWithMaxWidth(
-				this.ctx,
-				`${roundToNearestMultiple(this.wasmGraphRenderer.getScaleLineValueAt(i), this.options.valueAxis.smallestScale)}`,
-				0,
-				(this.wasmGraphRenderer.getScaleLineYAt(i) +
-					this.options.titleFontSize / 2) /
-					devicePixelRatio,
-				(this.wasmGraphRenderer.getScaleLineXAt(i) - 10) / devicePixelRatio,
-				{ horizontalAlignment: "right" },
-			);
+		// this.ctx.font = `${this.options.titleFontSize}px Arial`;
+		// this.ctx.fillStyle = "white";
+		// const scaleLinesLen = this.wasmGraphRenderer.getScaleLinesCount();
+		// for (let i = 0; i < scaleLinesLen; i++) {
+		// 	fillTextWithMaxWidth(
+		// 		this.ctx,
+		// 		`${roundToNearestMultiple(this.wasmGraphRenderer.getScaleLineValueAt(i), this.options.valueAxis.smallestScale)}`,
+		// 		0,
+		// 		(this.wasmGraphRenderer.getScaleLineYAt(i) +
+		// 			this.options.titleFontSize / 2) /
+		// 			devicePixelRatio,
+		// 		(this.wasmGraphRenderer.getScaleLineXAt(i) - 10) / devicePixelRatio,
+		// 		{ horizontalAlignment: "right" },
+		// 	);
 
-			// this.ctx.strokeStyle = "red";
-			// this.ctx.strokeRect(
-			// 	0,
-			// 	this.wasmGraphRenderer.getScaleLineYAt(i),
-			// 	this.options.valueAxis.width,
-			// 	this.options.valueAxis.minPixelDistance,
-			// );
-		}
+		// 	// this.ctx.strokeStyle = "red";
+		// 	// this.ctx.strokeRect(
+		// 	// 	0,
+		// 	// 	this.wasmGraphRenderer.getScaleLineYAt(i),
+		// 	// 	this.options.valueAxis.width,
+		// 	// 	this.options.valueAxis.minPixelDistance,
+		// 	// );
+		// }
 
-		this.ctx.font = `${this.options.titleFontSize}px Arial`;
-		this.ctx.fillStyle = "white";
-		const barsLen = this.wasmGraphRenderer.getBarsLen();
+		// this.ctx.font = `${this.options.titleFontSize}px Arial`;
+		// this.ctx.fillStyle = "white";
+		// const barsLen = this.wasmGraphRenderer.getBarsLen();
 
-		for (let i = 0; i < barsLen; i++) {
-			this.drawTitle(i);
-		}
+		// for (let i = 0; i < barsLen; i++) {
+		// 	this.drawTitle(i);
+		// }
 	}
 
 	public isAnimating() {

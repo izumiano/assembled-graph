@@ -1,5 +1,11 @@
 import { logError, logVerbose, logVerboseWarn } from "#logger";
 import type { ClickingState } from "../graphManager";
+import {
+	drawScene,
+	type GLBuffers,
+	type GLProgramInfo,
+	webGLInit,
+} from "../webGL";
 
 export interface Color {
 	r: number;
@@ -58,7 +64,9 @@ export class GraphRenderer<
 	TOptions extends GraphRendererOptions,
 > {
 	protected canvas: HTMLCanvasElement;
-	protected ctx: CanvasRenderingContext2D;
+	protected ctx: WebGL2RenderingContext;
+	protected glProgramInfo: GLProgramInfo;
+	protected glBuffers: GLBuffers;
 	protected width: number;
 	protected height: number;
 
@@ -73,8 +81,6 @@ export class GraphRenderer<
 	public pointer: PointerType;
 
 	private hasInitialized = false;
-
-	private pixelBufferSize = 0;
 
 	private inputEventHandlers: {
 		pointerdown?: PointerEventHandler;
@@ -102,14 +108,10 @@ export class GraphRenderer<
 		canvas: HTMLCanvasElement,
 		width: number,
 		height: number,
+		vsSource: string,
+		fsSource: string,
 		options: TOptions,
 	) {
-		const ctx = canvas.getContext("2d");
-
-		if (!ctx) {
-			throw new Error("Failed getting canvas rendering context");
-		}
-
 		if (width < 1) {
 			logVerboseWarn("width has to be >=1", "GraphRenderer", "constructor");
 			width = 1;
@@ -123,9 +125,17 @@ export class GraphRenderer<
 		canvas.style.height = `${height}px`;
 		canvas.width = width * devicePixelRatio;
 		canvas.height = height * devicePixelRatio;
-		ctx.scale(devicePixelRatio, devicePixelRatio);
+
+		const webGLData = webGLInit(canvas, vsSource, fsSource);
+		if (!webGLData) {
+			throw new Error("Failed initializing WebGL context");
+		}
+
+		// ctx.scale(devicePixelRatio, devicePixelRatio);
 		this.canvas = canvas;
-		this.ctx = ctx;
+		this.ctx = webGLData.gl;
+		this.glProgramInfo = webGLData.programInfo;
+		this.glBuffers = webGLData.buffers;
 		this.width = canvas.width;
 		this.height = canvas.height;
 		logVerbose({
@@ -135,7 +145,7 @@ export class GraphRenderer<
 			this_width: this.width,
 			this_height: this.height,
 		});
-		this.pixelBufferSize = this.width * this.height * 4;
+		// this.pixelBufferSize = this.width * this.height * 4;
 		this.imageData = new ImageData(this.width, this.height);
 		this.pointer = { x: -1, y: -1, clickingState: "None" };
 		this.options = options;
@@ -151,43 +161,50 @@ export class GraphRenderer<
 		this.wasmGraphRenderer = wasmGraphRenderer;
 	}
 
-	protected render() {
-		this.wasmGraphRenderer.render();
-
-		const pointer = this.wasmGraphRenderer.getPixelsPtr();
-		if (pointer + this.pixelBufferSize <= this.wasmMemory.buffer.byteLength) {
-			this.pixelsArr = new Uint8ClampedArray(
-				this.wasmMemory.buffer,
-				pointer,
-				this.pixelBufferSize,
-			);
-			this.imageData.data.set(this.pixelsArr);
-		} else {
-			logError("Pointer+Size was outsize the bounds of the pixel buffer", {
-				pointer,
-				bufferSize: this.pixelBufferSize,
-				memorySize: this.wasmMemory.buffer.byteLength,
-			});
-		}
-		this.ctx.putImageData(this.imageData, 0, 0);
+	protected render(timestamp: number) {
+		drawScene(
+			this.ctx,
+			this.glProgramInfo,
+			this.glBuffers,
+			this.options.backgroundColor ?? { r: 0, g: 0, b: 0, a: 255 },
+			timestamp,
+		);
+		// this.wasmGraphRenderer.render();
+		// const pointer = this.wasmGraphRenderer.getPixelsPtr();
+		// if (pointer + this.pixelBufferSize <= this.wasmMemory.buffer.byteLength) {
+		// 	this.pixelsArr = new Uint8ClampedArray(
+		// 		this.wasmMemory.buffer,
+		// 		pointer,
+		// 		this.pixelBufferSize,
+		// 	);
+		// 	this.imageData.data.set(this.pixelsArr);
+		// } else {
+		// 	logError("Pointer+Size was outsize the bounds of the pixel buffer", {
+		// 		pointer,
+		// 		bufferSize: this.pixelBufferSize,
+		// 		memorySize: this.wasmMemory.buffer.byteLength,
+		// 	});
+		// }
+		// this.ctx.putImageData(this.imageData, 0, 0);
 	}
 
 	public resize(width: number, height: number) {
-		if (width <= 0 || height <= 0) {
+		if (width < 1 || height < 1) {
 			logError("Cannot set canvas dimensions to non-positive value", {
 				width,
 				height,
 			});
 			return;
 		}
-		this.canvas.width = width * devicePixelRatio;
-		this.canvas.height = height * devicePixelRatio;
+		this.canvas.width = Math.floor(width * devicePixelRatio);
+		this.canvas.height = Math.floor(height * devicePixelRatio);
+		this.ctx.viewport(0, 0, this.canvas.width, this.canvas.height);
 		this.canvas.style.width = `${width}px`;
 		this.canvas.style.height = `${height}px`;
-		this.ctx.scale(devicePixelRatio, devicePixelRatio);
+		// this.ctx.scale(devicePixelRatio, devicePixelRatio);
 		this.width = this.canvas.width;
 		this.height = this.canvas.height;
-		this.pixelBufferSize = this.width * this.height * 4;
+		// this.pixelBufferSize = this.width * this.height * 4;
 		this.wasmGraphRenderer.resize(this.canvas.width, this.canvas.height);
 		this.imageData = new ImageData(this.width, this.height);
 	}
@@ -206,7 +223,7 @@ export type GraphData = object;
 export interface IGraphRenderer {
 	init(memory: WebAssembly.Memory, timestamp: number): void;
 	update(timestamp: number): void;
-	render(): void;
+	render(timestamp: number): void;
 	updateData(data: GraphData, timestamp: number): void;
 	isAnimating(): boolean;
 	onPointerDown(pointerType: string): void;
