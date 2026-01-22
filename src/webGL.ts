@@ -8,6 +8,7 @@ export type GLProgramInfo = {
 	program: WebGLProgram;
 	attribLocations: {
 		vertexPosition: number;
+		vertexColor: number;
 	};
 	uniformLocations: {
 		projectionMatrix: WebGLUniformLocation | null;
@@ -17,6 +18,7 @@ export type GLProgramInfo = {
 
 export type GLBuffers = {
 	positions: { buf: WebGLBuffer; size: number };
+	colors: { buf: WebGLBuffer; size: number };
 };
 
 export function webGLInit(
@@ -41,6 +43,7 @@ export function webGLInit(
 		program: shaderProgram,
 		attribLocations: {
 			vertexPosition: gl.getAttribLocation(shaderProgram, "aVertexPosition"),
+			vertexColor: gl.getAttribLocation(shaderProgram, "aVertexColor"),
 		},
 		uniformLocations: {
 			projectionMatrix: gl.getUniformLocation(
@@ -121,8 +124,19 @@ function initBuffers(gl: WebGL2RenderingContext) {
 		gl.DYNAMIC_DRAW,
 	);
 
+	const colorsBuffer = gl.createBuffer();
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, colorsBuffer);
+
+	gl.bufferData(
+		gl.ARRAY_BUFFER,
+		new Float32Array(PREALLOCATED_BAR_VERTEX_ARRAY * 4),
+		gl.DYNAMIC_DRAW,
+	);
+
 	return {
 		positions: { buf: positionsBuffer, size: 0 },
+		colors: { buf: colorsBuffer, size: 0 },
 	};
 }
 
@@ -134,6 +148,16 @@ export function updatePositionsBuffer(
 	gl.bindBuffer(gl.ARRAY_BUFFER, positionsBuffer.buf);
 	gl.bufferSubData(gl.ARRAY_BUFFER, 0, positions);
 	positionsBuffer.size = positions.length;
+}
+
+export function updateColorsBuffer(
+	gl: WebGL2RenderingContext,
+	colors: Float32Array,
+	colorsBuffer: { buf: WebGLBuffer; size: number },
+) {
+	gl.bindBuffer(gl.ARRAY_BUFFER, colorsBuffer.buf);
+	gl.bufferSubData(gl.ARRAY_BUFFER, 0, colors);
+	colorsBuffer.size = colors.length;
 }
 
 export function drawScene(
@@ -156,10 +180,8 @@ export function drawScene(
 
 	const modelViewMatrix = mat4.create();
 
-	// mat4.translate(modelViewMatrix, modelViewMatrix, [0, 0, -timestamp / 1000]);
-	// mat4.rotate(modelViewMatrix, modelViewMatrix, timestamp / 100, [0, 0, 1]);
-
 	setPositionAttribute(gl, buffers, programInfo);
+	setColorAttribute(gl, buffers, programInfo);
 
 	gl.useProgram(programInfo.program);
 
@@ -202,4 +224,27 @@ function setPositionAttribute(
 		offset,
 	);
 	gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
+}
+
+function setColorAttribute(
+	gl: WebGL2RenderingContext,
+	buffers: GLBuffers,
+	programInfo: GLProgramInfo,
+) {
+	const numComponents = 4;
+	const type = gl.FLOAT;
+	const normalize = false;
+	const stride = 0;
+	const offset = 0;
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, buffers.colors.buf);
+	gl.vertexAttribPointer(
+		programInfo.attribLocations.vertexColor,
+		numComponents,
+		type,
+		normalize,
+		stride,
+		offset,
+	);
+	gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor);
 }

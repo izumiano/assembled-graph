@@ -334,10 +334,11 @@ impl BarChart {
 	}
 
 	pub fn get_bars_vertices(&self) -> Box<[f32]> {
-		let mut vertices = vec![0.; self.bars.len() * 12].into_boxed_slice();
+		log_verbose!("get_bars_vertices");
+		let mut vertices = vec![0.; self.bars.len() * 6 * 2].into_boxed_slice();
 
 		for (i, bar) in self.bars.iter().enumerate() {
-			let vert_index = i * 12;
+			let vert_index = i * 6 * 2;
 
 			let width = (bar.width as f32 * bar.scale) as u32;
 			let left_px = bar.x as f32 - (width as f32 - bar.width as f32) / 2.;
@@ -362,6 +363,27 @@ impl BarChart {
 		}
 
 		vertices
+	}
+
+	pub fn get_bars_vertices_colors(&self) -> Box<[f32]> {
+		log_verbose!("get_bars_vertices_colors");
+		let mut colors = vec![0.; self.bars.len() * 6 * 4].into_boxed_slice();
+
+		for (i, bar) in self.bars.iter().enumerate() {
+			let vert_index = i * 6 * 4;
+
+			let color = bar.color;
+
+			for offset in 0..6 {
+				let offset = offset * 4;
+				colors[vert_index + offset] = color.r as f32 / 255.;
+				colors[vert_index + offset + 1] = color.g as f32 / 255.;
+				colors[vert_index + offset + 2] = color.b as f32 / 255.;
+				colors[vert_index + offset + 3] = color.a as f32 / 255.;
+			}
+		}
+
+		colors
 	}
 
 	pub fn get_bars_len(&self) -> usize {

@@ -10,7 +10,7 @@ import {
 	Positioning as WasmPositioning,
 	ValueAxisLayout as WasmValueAxisLayout,
 } from "../../graph-renderer/pkg/graph_renderer.js";
-import { updatePositionsBuffer } from "../../webGL.js";
+import { updateColorsBuffer, updatePositionsBuffer } from "../../webGL.js";
 import fsSource from "./barChart.frag?raw";
 import vsSource from "./barChart.vert?raw";
 // import {
@@ -171,6 +171,9 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	}
 	getBarsVertices() {
 		return this.wasmGraph.get_bars_vertices();
+	}
+	getBarsVerticesColors() {
+		return this.wasmGraph.get_bars_vertices_colors();
 	}
 	getBarsLen() {
 		return this.wasmGraph.get_bars_len();
@@ -477,8 +480,10 @@ export default class BarChart
 		this.wasmGraphRenderer.update(timestamp, this.pointer);
 
 		const vertexArr = this.wasmGraphRenderer.getBarsVertices();
+		const colorsArr = this.wasmGraphRenderer.getBarsVerticesColors();
 
 		updatePositionsBuffer(this.ctx, vertexArr, this.glBuffers.positions);
+		updateColorsBuffer(this.ctx, colorsArr, this.glBuffers.colors);
 	}
 
 	public render(timestamp: number) {
