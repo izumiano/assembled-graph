@@ -12,8 +12,6 @@
 		"types": ["vite/client"],
 		"skipLibCheck": true,
 
-		"paths": { "#logger": ["./src/logger"], "#devLogger": ["./src/logger"] },
-
 		/* Bundler mode */
 		"moduleResolution": "bundler",
 		"allowImportingTsExtensions": true,

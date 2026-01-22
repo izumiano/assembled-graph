@@ -1,4 +1,4 @@
-import { logVerbose } from "#logger";
+import { trace } from "@izumiano/vite-logger";
 import {
 	BarChart as WasmBarChart,
 	BarChartLayout as WasmBarChartLayout,
@@ -397,7 +397,7 @@ export default class BarChart
 	}
 
 	public dispose() {
-		logVerbose("dispose", this.constructor.name);
+		trace();
 		this.wasmGraphRenderer.wasmGraph.free();
 		this.removeInputEventHandlers();
 	}
@@ -466,16 +466,12 @@ export default class BarChart
 	}
 
 	public update(timestamp: number) {
-		logVerbose("update", this.constructor.name);
+		trace();
 		this.wasmGraphRenderer.update(timestamp, this.pointer);
 	}
 
 	public render() {
-		logVerbose(
-			"render",
-			{ width: this.width, height: this.height },
-			this.constructor.name,
-		);
+		trace({ width: this.width, height: this.height });
 		super.render();
 
 		this.ctx.font = `${this.options.titleFontSize}px Arial`;

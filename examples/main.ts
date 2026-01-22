@@ -46,7 +46,6 @@ const graph = new BarChart(
 	{
 		onHover: {
 			func: (info) => {
-				console.log(info);
 				if (!info) {
 					graphInfoElem.classList.add("hidden");
 					return;

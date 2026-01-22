@@ -1,24 +1,18 @@
 import { biomePlugin } from "@pbr1111/vite-plugin-biome";
 import dts from 'vite-plugin-dts';
-import { AliasOptions, defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import path, {resolve} from "path";
+import logPlugin from "@izumiano/vite-plugin-logger";
 
 // https://vite.dev/config/
 export default defineConfig(({mode}) => {
 	const dev = mode === "development";
 
-	const aliases: AliasOptions = {"#logger": path.resolve(__dirname, "./src/logger")};
-
-	if(dev){
-		aliases["#devLogger"] = path.resolve(__dirname, "./src/logger");
-	}
+	const {VITE_TRACE, VITE_DO_SERVER_LOG, VITE_LOG_URL} = loadEnv(mode, path.resolve(__dirname))
 
 	return {
-		plugins: [biomePlugin(), dts({insertTypesEntry: true, tsconfigPath: "./tsconfig.json", exclude: ["src/logger.ts", "src/devLogger.ts"]})],
+		plugins: [biomePlugin(), logPlugin({mode, traceEnabled: VITE_TRACE === "true", doServerLog: VITE_DO_SERVER_LOG === "true", logUrl: VITE_LOG_URL}), dts({insertTypesEntry: true, tsconfigPath: "./tsconfig.json", exclude: ["src/logger.ts", "src/devLogger.ts"]})],
 		base: "/",
-		resolve: {
-			alias: aliases
-		},
 		esbuild: {
 			minifyIdentifiers: !dev,
 			keepNames: dev
