@@ -168,11 +168,11 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	getScaleLineXAt(i: number) {
 		return this.wasmGraph.get_scale_line_x_at(i);
 	}
-	getBarsVertices() {
-		return this.wasmGraph.get_bars_vertices();
+	getVertexPositions() {
+		return this.wasmGraph.get_vertex_positions();
 	}
-	getBarsVerticesColors() {
-		return this.wasmGraph.get_bars_vertices_colors();
+	getVertexColors() {
+		return this.wasmGraph.get_vertex_colors();
 	}
 	getBarsLen() {
 		return this.wasmGraph.get_bars_len();
@@ -487,8 +487,8 @@ export default class BarChart
 		trace();
 		this.wasmGraphRenderer.update(timestamp, this.pointer);
 
-		const vertexArr = this.wasmGraphRenderer.getBarsVertices();
-		const colorsArr = this.wasmGraphRenderer.getBarsVerticesColors();
+		const vertexArr = this.wasmGraphRenderer.getVertexPositions();
+		const colorsArr = this.wasmGraphRenderer.getVertexColors();
 
 		this.glRenderer.updatePositionsBuffer(vertexArr);
 		this.glRenderer.updateColorsBuffer(colorsArr);

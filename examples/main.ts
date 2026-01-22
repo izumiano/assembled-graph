@@ -41,7 +41,10 @@ const graph = new BarChart(
 			gap: 50,
 		},
 		titleFontSize: 15,
-		valueAxis: { width: 40, minPixelDistance: 35 },
+		valueAxis: {
+			width: 40,
+			minPixelDistance: 35,
+		},
 		positioning: { bottom: 30, top: 20, left: 10, right: 20 },
 	},
 	{

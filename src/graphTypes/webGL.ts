@@ -214,3 +214,27 @@ function initShaderProgram(
 
 	return shaderProgram;
 }
+
+export function debugColorArray(colors: Float32Array) {
+	const colorsArr = [];
+	for (let i = 0; i < colors.length; i += 4) {
+		colorsArr.push({
+			r: colors[i],
+			g: colors[i + 1],
+			b: colors[i + 2],
+			a: colors[i + 3],
+		});
+	}
+	return { colors: colorsArr };
+}
+
+export function debugPositionsArray(positions: Float32Array) {
+	const positionsArr = [];
+	for (let i = 0; i < positions.length; i += 2) {
+		positionsArr.push({
+			x: positions[i],
+			y: positions[i + 1],
+		});
+	}
+	return { positions: positionsArr };
+}
