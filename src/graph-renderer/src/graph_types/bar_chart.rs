@@ -334,17 +334,16 @@ impl BarChart {
 	}
 
 	pub fn get_bars_vertices(&self) -> Box<[f32]> {
-		// self.bars.clone()
 		let mut vertices = vec![0.; self.bars.len() * 12].into_boxed_slice();
 
 		for (i, bar) in self.bars.iter().enumerate() {
 			let vert_index = i * 12;
 
 			let width = (bar.width as f32 * bar.scale) as u32;
-			let left = bar.x as f32 - (width as f32 - bar.width as f32) / 2.;
+			let left_px = bar.x as f32 - (width as f32 - bar.width as f32) / 2.;
 
-			let left = (left / self.width as f32) * 2. - 1.;
-			let right = ((bar.x as f32 + width as f32) / self.width as f32) * 2. - 1.;
+			let left = (left_px / self.width as f32) * 2. - 1.;
+			let right = ((left_px + width as f32) / self.width as f32) * 2. - 1.;
 			let bottom = -(((bar.y as f32 + bar.height as f32) / self.height as f32) * 2. - 1.);
 			let top = -((bar.y as f32 / self.height as f32) * 2. - 1.);
 			vertices[vert_index] = left;
