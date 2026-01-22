@@ -10,9 +10,7 @@ import {
 	Positioning as WasmPositioning,
 	ValueAxisLayout as WasmValueAxisLayout,
 } from "../../graph-renderer/pkg/graph_renderer.js";
-import { updateColorsBuffer, updatePositionsBuffer } from "../../webGL.js";
-import fsSource from "./barChart.frag?raw";
-import vsSource from "./barChart.vert?raw";
+
 // import {
 // 	clamp,
 // 	fillTextWithMaxWidth,
@@ -30,6 +28,7 @@ import {
 	type WasmGraphRendererInterop,
 } from "../graphRenderer.js";
 import { colorToWasmColor } from "../wasmUtils.js";
+import BarChartGL from "./webGL.js";
 
 export interface DataPoint {
 	title: string;
@@ -246,7 +245,8 @@ export default class BarChart
 	extends GraphRenderer<
 		WasmBarChart,
 		WasmBarChartInterop,
-		InternalBarChartOptions
+		InternalBarChartOptions,
+		BarChartGL
 	>
 	implements IGraphRenderer
 {
@@ -268,6 +268,7 @@ export default class BarChart
 		options?: BarChartOptions,
 		callbacks?: BarChartCallbacks,
 	) {
+		trace();
 		options ??= {};
 
 		const internalOptions = {
@@ -322,7 +323,13 @@ export default class BarChart
 			},
 		};
 
-		super(canvas, width, height, vsSource, fsSource, internalOptions);
+		super(
+			canvas,
+			width,
+			height,
+			new BarChartGL(canvas, options.backgroundColor ?? { r: 0, g: 0, b: 0 }),
+			internalOptions,
+		);
 
 		this.data = dataToInternalData(data);
 		this.onSelectionChange = callbacks?.onSelectionChange?.func;
@@ -365,6 +372,7 @@ export default class BarChart
 	// }
 
 	public updateData(data: BarChartData, timestamp: number) {
+		trace(data);
 		if (data === this.data) {
 			return;
 		}
@@ -482,8 +490,8 @@ export default class BarChart
 		const vertexArr = this.wasmGraphRenderer.getBarsVertices();
 		const colorsArr = this.wasmGraphRenderer.getBarsVerticesColors();
 
-		updatePositionsBuffer(this.ctx, vertexArr, this.glBuffers.positions);
-		updateColorsBuffer(this.ctx, colorsArr, this.glBuffers.colors);
+		this.glRenderer.updatePositionsBuffer(vertexArr);
+		this.glRenderer.updateColorsBuffer(colorsArr);
 	}
 
 	public render(timestamp: number) {

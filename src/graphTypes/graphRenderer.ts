@@ -1,11 +1,7 @@
 import { logError, trace, traceWarn } from "@izumiano/vite-logger";
 import type { ClickingState } from "../graphManager";
-import {
-	drawScene,
-	type GLBuffers,
-	type GLProgramInfo,
-	webGLInit,
-} from "../webGL";
+import type { RequiredUniformLocations, WebGLBuffers } from "./webGL";
+import type WebGLRenderer from "./webGL";
 
 export interface Color {
 	r: number;
@@ -57,16 +53,26 @@ type InputEventType = {
 	canvas: HTMLCanvasElement;
 };
 
+export type UnknownGraphRenderer = GraphRenderer<
+	unknown,
+	WasmGraphRendererInterop<unknown>,
+	GraphRendererOptions,
+	WebGLRenderer<unknown, RequiredUniformLocations, WebGLBuffers>
+>;
+
 export const devicePixelRatio = window.devicePixelRatio || 1;
 export class GraphRenderer<
 	T,
 	WasmInterop extends WasmGraphRendererInterop<T>,
 	TOptions extends GraphRendererOptions,
+	TGLRenderer extends WebGLRenderer<
+		unknown,
+		RequiredUniformLocations,
+		WebGLBuffers
+	>,
 > {
 	protected canvas: HTMLCanvasElement;
 	protected ctx: WebGL2RenderingContext;
-	protected glProgramInfo: GLProgramInfo;
-	protected glBuffers: GLBuffers;
 	protected width: number;
 	protected height: number;
 
@@ -77,6 +83,7 @@ export class GraphRenderer<
 	protected imageData: ImageData;
 
 	protected wasmGraphRenderer!: WasmInterop;
+	protected glRenderer: TGLRenderer;
 
 	public pointer: PointerType;
 
@@ -108,10 +115,10 @@ export class GraphRenderer<
 		canvas: HTMLCanvasElement,
 		width: number,
 		height: number,
-		vsSource: string,
-		fsSource: string,
+		glRenderer: TGLRenderer,
 		options: TOptions,
 	) {
+		trace();
 		if (width < 1) {
 			traceWarn("width has to be >=1");
 			width = 1;
@@ -123,19 +130,15 @@ export class GraphRenderer<
 
 		canvas.style.width = `${width}px`;
 		canvas.style.height = `${height}px`;
-		canvas.width = width * devicePixelRatio;
-		canvas.height = height * devicePixelRatio;
+		canvas.width = Math.floor(width * devicePixelRatio);
+		canvas.height = Math.floor(height * devicePixelRatio);
 
-		const webGLData = webGLInit(canvas, vsSource, fsSource);
-		if (!webGLData) {
-			throw new Error("Failed initializing WebGL context");
-		}
+		const gl = glRenderer.gl;
+		gl.viewport(0, 0, canvas.width, canvas.height);
 
-		// ctx.scale(devicePixelRatio, devicePixelRatio);
 		this.canvas = canvas;
-		this.ctx = webGLData.gl;
-		this.glProgramInfo = webGLData.programInfo;
-		this.glBuffers = webGLData.buffers;
+		this.glRenderer = glRenderer;
+		this.ctx = gl;
 		this.width = canvas.width;
 		this.height = canvas.height;
 		trace({
@@ -145,7 +148,6 @@ export class GraphRenderer<
 			this_width: this.width,
 			this_height: this.height,
 		});
-		// this.pixelBufferSize = this.width * this.height * 4;
 		this.imageData = new ImageData(this.width, this.height);
 		this.pointer = { x: -1, y: -1, clickingState: "None" };
 		this.options = options;
@@ -162,13 +164,7 @@ export class GraphRenderer<
 	}
 
 	protected render(timestamp: number) {
-		drawScene(
-			this.ctx,
-			this.glProgramInfo,
-			this.glBuffers,
-			this.options.backgroundColor ?? { r: 0, g: 0, b: 0, a: 255 },
-			timestamp,
-		);
+		this.glRenderer.draw(timestamp);
 		// this.wasmGraphRenderer.render();
 		// const pointer = this.wasmGraphRenderer.getPixelsPtr();
 		// if (pointer + this.pixelBufferSize <= this.wasmMemory.buffer.byteLength) {
@@ -201,10 +197,8 @@ export class GraphRenderer<
 		this.ctx.viewport(0, 0, this.canvas.width, this.canvas.height);
 		this.canvas.style.width = `${width}px`;
 		this.canvas.style.height = `${height}px`;
-		// this.ctx.scale(devicePixelRatio, devicePixelRatio);
 		this.width = this.canvas.width;
 		this.height = this.canvas.height;
-		// this.pixelBufferSize = this.width * this.height * 4;
 		this.wasmGraphRenderer.resize(this.canvas.width, this.canvas.height);
 		this.imageData = new ImageData(this.width, this.height);
 	}
