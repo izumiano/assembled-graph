@@ -1,4 +1,4 @@
-import { logError, logVerbose, logVerboseWarn } from "#logger";
+import { logError, trace, traceWarn } from "@izumiano/vite-logger";
 import type { ClickingState } from "../graphManager";
 import {
 	drawScene,
@@ -113,11 +113,11 @@ export class GraphRenderer<
 		options: TOptions,
 	) {
 		if (width < 1) {
-			logVerboseWarn("width has to be >=1", "GraphRenderer", "constructor");
+			traceWarn("width has to be >=1");
 			width = 1;
 		}
 		if (height < 1) {
-			logVerboseWarn("height has to be >=1", "GraphRenderer", "constructor");
+			traceWarn("height has to be >=1");
 			height = 1;
 		}
 
@@ -138,7 +138,7 @@ export class GraphRenderer<
 		this.glBuffers = webGLData.buffers;
 		this.width = canvas.width;
 		this.height = canvas.height;
-		logVerbose({
+		trace({
 			devicePixelRatio,
 			canvas_width: canvas.width,
 			canvas_height: canvas.height,

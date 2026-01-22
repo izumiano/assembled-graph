@@ -85,7 +85,6 @@ if (graphManager) {
 			graph.resize(width, height);
 			const timestamp = graphManager.getTimestamp();
 			graph.update(timestamp);
-			// graph.render(timestamp);
 			graph.render(timestamp);
 		}
 	});

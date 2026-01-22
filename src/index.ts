@@ -1,4 +1,11 @@
-import { logError, logVerbose, logWarn, sendLogs } from "#logger";
+import {
+	logError,
+	trace,
+	logWarn,
+	sendLogs,
+	traceWarn,
+	traceWithStacktrace,
+} from "@izumiano/vite-logger";
 
 export { default as GraphManager } from "./graphManager";
 export {
@@ -13,7 +20,9 @@ export {
 export { GraphRenderer } from "./graphTypes/graphRenderer";
 
 export const __assembledGraphLogger__ = {
-	logVerbose,
+	trace,
+	traceWarn,
+	traceWithStacktrace,
 	logError,
 	logWarn,
 	sendLogs,

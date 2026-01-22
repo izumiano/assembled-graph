@@ -1,6 +1,6 @@
 import { mat4 } from "gl-matrix";
-import { logError } from "#logger";
 import type { Color } from "./graphTypes/graphRenderer";
+import { logError } from "@izumiano/vite-logger";
 
 const PREALLOCATED_BAR_VERTEX_ARRAY = 12 * 1000;
 

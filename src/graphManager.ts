@@ -1,4 +1,4 @@
-import { logVerbose, logWarn } from "#logger";
+import { trace, logWarn } from "@izumiano/vite-logger";
 import init, { type InitOutput } from "./graph-renderer/pkg/graph_renderer.js";
 import type {
 	GraphRenderer,
@@ -57,7 +57,7 @@ export default class GraphManager {
 	}
 
 	public dispose() {
-		logVerbose("dispose", this.constructor.name);
+		trace();
 		this.renderers.forEach((renderer) => {
 			renderer.dispose();
 		});
@@ -97,7 +97,7 @@ export default class GraphManager {
 		> &
 			IGraphRenderer,
 	>(renderer: TGraphRenderer) {
-		logVerbose("add graph", this.constructor.name);
+		trace();
 		renderer.init(this.initOutput.memory, this.timestamp);
 		renderer.update(this.timestamp);
 		renderer.render(this.timestamp);
@@ -118,7 +118,7 @@ export default class GraphManager {
 		> &
 			IGraphRenderer,
 	>(renderer: TGraphRenderer) {
-		logVerbose("remove graph", this.constructor.name);
+		trace();
 		renderer.dispose();
 
 		this.renderers.delete(renderer);

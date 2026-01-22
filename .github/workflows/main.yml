@@ -52,7 +52,11 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@izumiano"
       - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm run build
       - run: npm test
       - run: mv package.json dist/package.json
