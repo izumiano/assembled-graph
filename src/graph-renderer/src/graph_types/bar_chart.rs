@@ -8,6 +8,7 @@ use crate::animation::*;
 use crate::graph_types::utils::*;
 use crate::log_verbose;
 use crate::log_verbose_priority;
+use crate::log_warn;
 use crate::utils::*;
 
 #[wasm_struct]
@@ -593,6 +594,7 @@ impl BarChart {
 		pointer_y: Option<u32>,
 		clicking_state: ClickingState,
 	) {
+		log_verbose!("calculate_bars");
 		let bars_count = self.data.len();
 
 		let mut left = self.left + self.value_axis_width;
@@ -778,6 +780,7 @@ impl BarChart {
 	}
 
 	fn calculate_scale_lines(&mut self) {
+		log_verbose!("calculate_scale_lines");
 		let thickness = 2;
 		let x_offset = self.value_axis_width;
 
@@ -792,6 +795,11 @@ impl BarChart {
 		if pixel_distance < min_pixel_dist {
 			mult = (min_pixel_dist / pixel_distance).ceil_nearest_power_2() as i64;
 			pixel_distance *= mult as f32;
+		}
+
+		if pixel_distance < 1. {
+			log_warn!("pixel_distance < 1");
+			return;
 		}
 
 		let line_count = (height / pixel_distance).to_u32() + 1;
