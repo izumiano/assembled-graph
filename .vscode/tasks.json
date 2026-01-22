@@ -14,14 +14,14 @@
 			"group": "build"
 		},
 		{
-			"label": "dev:build:verbose",
-			"dependsOn": ["dev:compileWasm:verbose", "Dev:Build Vite"],
+			"label": "dev:build:trace",
+			"dependsOn": ["dev:compileWasm:trace", "Dev:Build Vite"],
 			"dependsOrder": "sequence",
 			"group": "build"
 		},
 		{
-			"label": "build:verbose",
-			"dependsOn": ["compileWasm:verbose", "Build Vite"],
+			"label": "build:trace",
+			"dependsOn": ["compileWasm:trace", "Build Vite"],
 			"dependsOrder": "sequence",
 			"group": "build"
 		},
@@ -104,9 +104,9 @@
 		},
 		{
 			"type": "npm",
-			"script": "compileWasm:verbose",
-			"label": "compileWasm:verbose",
-			"detail": "compile rust to wasm -release with verbose logging",
+			"script": "compileWasm:trace",
+			"label": "compileWasm:trace",
+			"detail": "compile rust to wasm -release with tracing",
 			"group": "build",
 			"presentation": {
 				"clear": true
@@ -114,9 +114,9 @@
 		},
 		{
 			"type": "npm",
-			"script": "dev:compileWasm:verbose",
-			"label": "dev:compileWasm:verbose",
-			"detail": "compile rust to wasm -debug with verbose logging",
+			"script": "dev:compileWasm:trace",
+			"label": "dev:compileWasm:trace",
+			"detail": "compile rust to wasm -debug with tracing",
 			"group": "build",
 			"presentation": {
 				"clear": true

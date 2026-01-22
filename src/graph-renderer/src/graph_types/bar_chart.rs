@@ -6,9 +6,8 @@ use wasm_bindgen::prelude::*;
 use crate::DefineAnimation;
 use crate::animation::*;
 use crate::graph_types::utils::*;
-use crate::log_verbose;
-use crate::log_verbose_priority;
 use crate::log_warn;
+use crate::trace;
 use crate::utils::*;
 
 #[wasm_struct]
@@ -317,7 +316,7 @@ impl BarChart {
 	}
 
 	pub fn update_data(&mut self, data: Vec<DataPoint>, timestamp: f64) {
-		log_verbose_priority!(format!(
+		trace!(format!(
 			"Updating data from {:#?} to {:#?}",
 			self.data, data
 		));
@@ -428,7 +427,7 @@ impl BarChart {
 	}
 
 	pub fn get_vertex_positions(&self) -> Box<[f32]> {
-		log_verbose!("get_vertex_positions");
+		trace!("get_vertex_positions");
 		let bar_vertex_count = self.bars.len() * 6 * 2;
 		let scale_lines_vertex_count = self.scale_line_count * 6 * 2;
 		let mut positions = vec![0.; scale_lines_vertex_count + bar_vertex_count].into_boxed_slice();
@@ -440,7 +439,7 @@ impl BarChart {
 	}
 
 	pub fn get_vertex_colors(&self) -> Box<[f32]> {
-		log_verbose!("get_vertex_colors");
+		trace!("get_vertex_colors");
 		let bar_vertex_count = self.bars.len() * 6 * 4;
 		let scale_lines_vertex_count = self.scale_line_count * 6 * 4;
 		let mut colors = vec![0.; scale_lines_vertex_count + bar_vertex_count].into_boxed_slice();
@@ -557,11 +556,11 @@ impl BarChart {
 
 			if selected {
 				if let SelectedState::Selected { timestamp: _ } = self.bars[i].selected_state {
-					log_verbose_priority!("Deselect bar", i);
+					trace!("Deselect bar", i);
 					self.bars[i].selected_state = SelectedState::None { timestamp };
 					self.selected_bar_index = None;
 				} else {
-					log_verbose_priority!("Select bar", i);
+					trace!("Select bar", i);
 					self.bars[i].selected_state = SelectedState::Selected { timestamp };
 					self.selected_bar_index = Some(index);
 				}
@@ -580,7 +579,7 @@ impl BarChart {
 			);
 
 			if selected {
-				log_verbose_priority!("Deselect bar", i);
+				trace!("Deselect bar", i);
 				self.bars[i].selected_state = SelectedState::None { timestamp };
 			}
 		}
@@ -594,7 +593,7 @@ impl BarChart {
 		pointer_y: Option<u32>,
 		clicking_state: ClickingState,
 	) {
-		log_verbose!("calculate_bars");
+		trace!("calculate_bars");
 		let bars_count = self.data.len();
 
 		let mut left = self.left + self.value_axis_width;
@@ -780,7 +779,7 @@ impl BarChart {
 	}
 
 	fn calculate_scale_lines(&mut self) {
-		log_verbose!("calculate_scale_lines");
+		trace!("calculate_scale_lines");
 		let thickness = 2;
 		let x_offset = self.value_axis_width;
 
@@ -858,7 +857,7 @@ impl BarChart {
 		pointer_y: Option<u32>,
 		clicking_state: ClickingState,
 	) {
-		log_verbose!("update");
+		trace!("update");
 
 		self.calculate_scale_lines();
 		self.calculate_bars(timestamp, pointer_x, pointer_y, clicking_state);
@@ -870,7 +869,7 @@ impl BarChart {
 	}
 
 	pub fn render(&mut self) {
-		log_verbose!("render");
+		trace!("render");
 
 		clear_background(
 			&mut self.pixels,

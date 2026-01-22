@@ -21,8 +21,8 @@ const width = canvasContainer.clientWidth;
 const height = canvasContainer.clientHeight;
 
 const data: { title: string; displayTitle?: string; value: number }[] = [
-	{ title: "0", displayTitle: "", value: 5 },
-	{ title: "1", displayTitle: "", value: 5 },
+	{ title: "0", displayTitle: "", value: randomInt() },
+	{ title: "1", displayTitle: "", value: randomInt() },
 ];
 
 const graphManager = await GraphManager.create();

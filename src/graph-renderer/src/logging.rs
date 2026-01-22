@@ -12,6 +12,10 @@ extern "C" {
 
 	#[wasm_bindgen(js_namespace = console, js_name = debug)]
 	fn log_debug(s: &str);
+	#[wasm_bindgen(js_namespace = console, js_name = debug)]
+	fn log_debug2(s: &str, s2: &str);
+	#[wasm_bindgen(js_namespace = console, js_name = debug)]
+	fn log_debug3(s: &str, s2: &str, s3: &str);
 
 	#[wasm_bindgen(js_namespace = console, js_name = error)]
 	fn log_error(s: &str);
@@ -57,17 +61,31 @@ impl LogInfo for String {
 // Debug
 pub trait LogDebug {
 	fn log_debug(&self);
+	fn log_debug2(&self, other: &str);
+	fn log_debug3(&self, b: &str, c: &str);
 }
 
 impl LogDebug for &str {
 	fn log_debug(&self) {
 		log_debug(self);
 	}
+	fn log_debug2(&self, other: &str) {
+		log_debug2(self, other);
+	}
+	fn log_debug3(&self, b: &str, c: &str) {
+		log_debug3(self, b, c);
+	}
 }
 
 impl LogDebug for String {
 	fn log_debug(&self) {
 		log_debug(self);
+	}
+	fn log_debug2(&self, other: &str) {
+		log_debug2(self, other);
+	}
+	fn log_debug3(&self, b: &str, c: &str) {
+		log_debug3(self, b, c);
 	}
 }
 
@@ -143,36 +161,36 @@ macro_rules! log {
 			compile_error!("log!() can only be used in debug mode")
 		}}
 
-		use $crate::log_format;
+		#[allow(unused_imports)]
 		use $crate::logging::*;
-		log_format!($($x)*).log();
+		$crate::log_format!($($x)*).log();
 	}
 }
 
 #[macro_export]
 macro_rules! log_info {
 	($($x:tt)*) => {
-		use $crate::log_format;
+		#[allow(unused_imports)]
 		use $crate::logging::*;
-		log_format!($($x)*).log_info();
+		$crate::log_format!($($x)*).log_info();
 	}
 }
 
 #[macro_export]
 macro_rules! log_warn {
 	($($x:tt)*) => {
-		use $crate::log_format;
+		#[allow(unused_imports)]
 		use $crate::logging::*;
-		log_format!($($x)*).log_warn();
+		$crate::log_format!($($x)*).log_warn();
 	}
 }
 
 #[macro_export]
 macro_rules! log_error {
 	($($x:tt)*) => {
-		use $crate::log_format;
+		#[allow(unused_imports)]
 		use $crate::logging::*;
-		log_format!($($x)*).log_error();
+		$crate::log_format!($($x)*).log_error();
 	}
 }
 
@@ -180,44 +198,40 @@ macro_rules! log_error {
 macro_rules! log_debug {
 	($($x:tt)*) => {
 		#[cfg(debug_assertions)]{{
-			use $crate::log_format;
+			#[allow(unused_imports)]
 			use $crate::logging::*;
-			log_format!($($x)*).log_debug();
+			$crate::log_format!($($x)*).log_debug();
 		}}
 	}
 }
 
 #[macro_export]
-macro_rules! log_verbose {
+macro_rules! trace {
 	($($x:tt)*) => {
-		#[cfg(feature = "verbose-log")]{{
-			use $crate::log_format;
-			use $crate::logging::*;
-			log_format!($($x)*).log_debug();
-		}}
-	}
-}
+		#[cfg(feature = "trace")]
+		{
+			{
+				#[allow(unused_imports)]
+				use $crate::logging::*;
 
-#[macro_export]
-macro_rules! log_verbose_priority {
-	($($x:tt)*) => {
-		#[cfg(feature = "verbose-log")]{{
-			use $crate::log_format;
-			use $crate::logging::*;
-			log_format!($($x)*).log();
-		}}
-	}
-}
+				let module_path = module_path!();
 
-#[macro_export]
-macro_rules! log_debug_verbose {
-	($($x:tt)*) => {
-		#[cfg(all(feature = "verbose-log", debug_assertions))]{{
-			use $crate::log_format;
-			use $crate::logging::*;
-			log_format!($($x)*).log_debug();
-		}}
-	}
+				let module_name = match module_path.rfind(":") {
+					Some(index) => Some(&module_path[(index + 1)..]),
+					None => None,
+				};
+
+				let formatted_log = $crate::log_format!($($x)*);
+
+				if let Some(module_name) = module_name{
+					(String::from("%c[") + module_name + "]").log_debug3("color: #B7410E;", &formatted_log);
+				}
+				else{
+					formatted_log.log_debug();
+				}
+			}
+		}
+	};
 }
 
 #[macro_export]

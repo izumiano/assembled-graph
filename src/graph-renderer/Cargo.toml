@@ -11,4 +11,4 @@ wasm-bindgen = "0.2"
 proc_macros = { path = "../proc_macros" }
 
 [features]
-verbose-log = []
+trace = []
