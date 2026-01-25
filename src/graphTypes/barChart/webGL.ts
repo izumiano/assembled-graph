@@ -7,10 +7,10 @@ import WebGLRenderer, {
 } from "../webGL";
 import type { Color } from "../graphRenderer";
 
-import fsSource_general from "./general.frag?raw";
-import vsSource_general from "./general.vert?raw";
-import fsSource_bars from "./bars.frag?raw";
-import vsSource_bars from "./bars.vert?raw";
+import fsSource_general from "./general.frag";
+import vsSource_general from "./general.vert";
+import fsSource_bars from "./bars.frag";
+import vsSource_bars from "./bars.vert";
 import { mat4 } from "gl-matrix";
 
 const PREALLOCATED_BAR_VERTEX_ARRAY = 12 * 1000;
@@ -363,7 +363,10 @@ export default class BarChartGL
 			false,
 			Array.from(modelViewMatrix),
 		);
-		gl.uniform1f(this.programInfo_bars.uniformLocations.cornerRadius, this.cornerRadius);
+		gl.uniform1f(
+			this.programInfo_bars.uniformLocations.cornerRadius,
+			this.cornerRadius,
+		);
 		{
 			const offset = 0;
 			const vertexCount = this.buffers.positions_bars.size / 2;

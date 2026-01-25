@@ -40,7 +40,8 @@
 		"@types/node": "^25.0.3",
 		"typescript": "^5.9.3",
 		"vite": "^7.2.4",
-		"vite-plugin-dts": "^4.5.4"
+		"vite-plugin-dts": "^4.5.4",
+		"vite-plugin-glsl": "^1.5.5"
 	},
 	"dependencies": {
 		"@izumiano/vite-logger": "^0.0.1",
