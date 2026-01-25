@@ -22,7 +22,7 @@ import {
 	type WasmGraphRendererInterop,
 } from "../graphRenderer.js";
 import { colorToWasmColor } from "../wasmUtils.js";
-import BarChartGL from "./webGL.js";
+import BarChartGL from "./barChartGL.js";
 
 export interface DataPoint {
 	title: string;
