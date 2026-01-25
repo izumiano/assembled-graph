@@ -31,5 +31,4 @@ void main(void) {
 	}
 	float intensity = vRelativeBarPositions.y * 0.5 + 0.5;
 	gl_FragColor = vec4(vColor.r * intensity, vColor.g * intensity, vColor.b * intensity, vColor.a);
-	// gl_FragColor = vec4(vRelativeBarPositions.y,vRelativeBarPositions.y,vRelativeBarPositions.y,1.0);
 }

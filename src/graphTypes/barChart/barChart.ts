@@ -142,9 +142,6 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 
 		this.wasmGraph.update(timestamp, pointer.x, pointer.y, clickingState);
 	}
-	render() {
-		this.wasmGraph.render();
-	}
 
 	getIsAnimating() {
 		return this.wasmGraph.get_is_animating();

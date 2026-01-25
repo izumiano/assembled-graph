@@ -570,54 +570,6 @@ impl BarChart {
 		}
 	}
 
-	fn draw_bars(&mut self) {
-		for i in 0..self.bars.len() {
-			let bar = &self.bars[i];
-			let corner_radius = min(self.bar_corner_radius, bar.width / 2);
-			let color = bar.color;
-			let width = (bar.width as f32 * bar.scale) as u32;
-			let left = (bar.x as i32 - (width as i32 - bar.width as i32) / 2).to_u32();
-			let bar_y = bar.y;
-			let bar_height = bar.height;
-
-			self.draw_rect(
-				left,
-				bar_y + corner_radius,
-				width,
-				(bar_height as i32 - corner_radius as i32).to_u32(),
-				&color,
-			);
-
-			self.draw_rect(
-				left + corner_radius,
-				bar_y,
-				(width as i32 - corner_radius as i32 * 2).to_u32(),
-				min(corner_radius, bar_height),
-				&color,
-			);
-
-			draw_circle_direct(
-				&mut self.pixels,
-				self.width,
-				(self.height as i32 - self.bottom as i32).to_u32(),
-				left + corner_radius,
-				bar_y + corner_radius,
-				corner_radius,
-				&color,
-			);
-
-			draw_circle_direct(
-				&mut self.pixels,
-				self.width,
-				(self.height as i32 - self.bottom as i32).to_u32(),
-				((left + width) as i32 - corner_radius as i32).to_u32(),
-				bar_y + corner_radius,
-				corner_radius,
-				&color,
-			);
-		}
-	}
-
 	fn toggle_bar_selection_at(&mut self, index: usize, timestamp: f64) {
 		for i in 0..self.bars.len() {
 			let selected = i == index;
@@ -831,21 +783,6 @@ impl BarChart {
 		self.is_animating = !all_animations_done;
 	}
 
-	fn draw_scale_lines(&mut self) {
-		for i in 0..self.scale_line_count {
-			let scale_line = &self.scale_lines[i];
-			let mut color = self.value_axis_color;
-			color.a = scale_line.intensity;
-			self.draw_rect_alpha(
-				scale_line.x,
-				scale_line.y,
-				scale_line.width,
-				scale_line.height,
-				&color,
-			);
-		}
-	}
-
 	fn calculate_scale_lines(&mut self) {
 		trace!("calculate_scale_lines");
 		let thickness = 2;
@@ -934,41 +871,5 @@ impl BarChart {
 			self.is_animating = true;
 			self.updated_data = false;
 		}
-	}
-
-	pub fn render(&mut self) {
-		trace!("render");
-
-		clear_background(
-			&mut self.pixels,
-			self.width,
-			self.height,
-			&self.background_color,
-		);
-
-		self.draw_scale_lines();
-
-		self.draw_bars();
-	}
-}
-
-impl GraphRenderer for BarChart {
-	fn get_mut_pixels(&mut self) -> &mut Vec<u8> {
-		&mut self.pixels
-	}
-	fn get_width(&self) -> u32 {
-		self.width
-	}
-	fn get_height(&self) -> u32 {
-		self.height
-	}
-	fn draw_rect(&mut self, x: u32, y: u32, width: u32, height: u32, color: &Color) {
-		draw_rect(self, x, y, width, height, color);
-	}
-	fn draw_rect_alpha(&mut self, x: u32, y: u32, width: u32, height: u32, color: &Color) {
-		draw_rect_alpha(self, x, y, width, height, color);
-	}
-	fn draw_circle(&mut self, x: u32, y: u32, radius: u32, color: &Color) {
-		draw_circle(self, x, y, radius, color);
 	}
 }

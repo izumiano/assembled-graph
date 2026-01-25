@@ -36,7 +36,6 @@ export interface WasmGraphRendererInterop<TGraph> {
 		pointer: PointerType,
 		clickingState: ClickingState,
 	): void;
-	render(): void;
 	updateData(data: GraphData, timestamp: number): void;
 	getIsAnimating(): boolean;
 }
