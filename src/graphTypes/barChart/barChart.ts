@@ -174,6 +174,12 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	getVertexColors_bars() {
 		return this.wasmGraph.get_bar_vertex_colors();
 	}
+	getRelativeBarVertexPositions() {
+		return this.wasmGraph.get_relative_bar_vertex_positions();
+	}
+	getCornerRadius() {
+		return this.wasmGraph.get_corner_radius();
+	}
 	getBarsLen() {
 		return this.wasmGraph.get_bars_len();
 	}
@@ -492,10 +498,16 @@ export default class BarChart
 		const colorsArr_general = this.wasmGraphRenderer.getVertexColors_general();
 		const vertexArr_bars = this.wasmGraphRenderer.getVertexPositions_bars();
 		const colorsArr_bars = this.wasmGraphRenderer.getVertexColors_bars();
+		const relativeBarPositions =
+			this.wasmGraphRenderer.getRelativeBarVertexPositions();
 
 		this.glRenderer.updateGeneralBuffers(vertexArr_general, colorsArr_general);
-		this.glRenderer.updateBarsBuffers(vertexArr_bars, colorsArr_bars);
-		trace("after");
+		this.glRenderer.updateBarsBuffers(
+			vertexArr_bars,
+			colorsArr_bars,
+			relativeBarPositions,
+		);
+		this.glRenderer.cornerRadius = this.wasmGraphRenderer.getCornerRadius();
 	}
 
 	public render(timestamp: number) {

@@ -28,24 +28,30 @@ type BarChartUniformLocations_General = {
 type BarChartAttribLocations_Bars = {
 	vertexPosition: number;
 	vertexColor: number;
+	vertexRelativeBarPosition: number;
 };
 
 type BarChartUniformLocations_Bars = {
 	projectionMatrix: WebGLUniformLocation;
 	modelViewMatrix: WebGLUniformLocation;
+	cornerRadius: WebGLUniformLocation;
 };
 
 type BarChartBuffers = {
 	positions_general: WebGLBufferInfo;
 	colors_general: WebGLBufferInfo;
+
 	positions_bars: WebGLBufferInfo;
 	colors_bars: WebGLBufferInfo;
+	relativeBarPositions: WebGLBufferInfo;
 };
 
 export default class BarChartGL
 	extends WebGLRenderer<BarChartBuffers>
 	implements IWebGL<BarChartBuffers>
 {
+	public cornerRadius: number = 0;
+
 	private programInfo_general: GLProgramInfo<
 		BarChartAttribLocations_General,
 		BarChartUniformLocations_General
@@ -72,8 +78,8 @@ export default class BarChartGL
 			this.gl,
 			vsSource_bars,
 			fsSource_bars,
-			["vertexColor", "vertexPosition"],
-			["projectionMatrix", "modelViewMatrix"],
+			["vertexColor", "vertexPosition", "vertexRelativeBarPosition"],
+			["projectionMatrix", "modelViewMatrix", "cornerRadius"],
 		);
 	}
 
@@ -118,11 +124,22 @@ export default class BarChartGL
 			gl.DYNAMIC_DRAW,
 		);
 
+		const relativeBarHeightsBuffer = gl.createBuffer();
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, relativeBarHeightsBuffer);
+
+		gl.bufferData(
+			gl.ARRAY_BUFFER,
+			new Float32Array(PREALLOCATED_BAR_VERTEX_ARRAY * 4),
+			gl.DYNAMIC_DRAW,
+		);
+
 		return {
 			positions_general: { buf: positionsBuffer_general, size: 0 },
 			colors_general: { buf: colorsBuffer_general, size: 0 },
 			positions_bars: { buf: positionsBuffer_bars, size: 0 },
 			colors_bars: { buf: colorsBuffer_bars, size: 0 },
+			relativeBarPositions: { buf: relativeBarHeightsBuffer, size: 0 },
 		};
 	}
 
@@ -134,6 +151,7 @@ export default class BarChartGL
 	private setAttributes_bars(gl: WebGL2RenderingContext) {
 		this.setPositionAttribute_bars(gl);
 		this.setColorAttribute_bars(gl);
+		this.setRelativeBarHeightsAttribute(gl);
 	}
 
 	private setPositionAttribute_general(gl: WebGL2RenderingContext) {
@@ -220,6 +238,27 @@ export default class BarChartGL
 		);
 	}
 
+	private setRelativeBarHeightsAttribute(gl: WebGL2RenderingContext) {
+		const numComponents = 4;
+		const type = gl.FLOAT;
+		const normalize = false;
+		const stride = 0;
+		const offset = 0;
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.relativeBarPositions.buf);
+		gl.vertexAttribPointer(
+			this.programInfo_bars.attribLocations.vertexRelativeBarPosition,
+			numComponents,
+			type,
+			normalize,
+			stride,
+			offset,
+		);
+		gl.enableVertexAttribArray(
+			this.programInfo_bars.attribLocations.vertexRelativeBarPosition,
+		);
+	}
+
 	private updatePositionsBuffer_general(positions: Float32Array) {
 		trace({ positions });
 		this.gl.bindBuffer(
@@ -258,11 +297,26 @@ export default class BarChartGL
 		this.buffers.colors_bars.size = colors.length;
 	}
 
-	public updateBarsBuffers(positions: Float32Array, colors: Float32Array) {
+	public updateRelativeBarPositionsBuffer(heights: Float32Array) {
+		trace({ heights });
+		this.gl.bindBuffer(
+			this.gl.ARRAY_BUFFER,
+			this.buffers.relativeBarPositions.buf,
+		);
+		this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, heights);
+		this.buffers.relativeBarPositions.size = heights.length;
+	}
+
+	public updateBarsBuffers(
+		positions: Float32Array,
+		colors: Float32Array,
+		relativeBarPositions: Float32Array,
+	) {
 		trace();
 		this.gl.useProgram(this.programInfo_bars.program);
 		this.updatePositionsBuffer_bars(positions);
 		this.updateColorsBuffer_bars(colors);
+		this.updateRelativeBarPositionsBuffer(relativeBarPositions);
 	}
 
 	override draw(timestamp: number) {
@@ -309,6 +363,7 @@ export default class BarChartGL
 			false,
 			Array.from(modelViewMatrix),
 		);
+		gl.uniform1f(this.programInfo_bars.uniformLocations.cornerRadius, this.cornerRadius);
 		{
 			const offset = 0;
 			const vertexCount = this.buffers.positions_bars.size / 2;

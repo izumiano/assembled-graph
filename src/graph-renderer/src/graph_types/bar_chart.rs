@@ -392,10 +392,13 @@ impl BarChart {
 			let width = (bar.width as f32 * bar.scale) as u32;
 			let left_px = bar.x as f32 - (width as f32 - bar.width as f32) / 2.;
 
+			// Convert pixel positions to (-1 to 1) scale
 			let left = (left_px / self.width as f32) * 2. - 1.;
 			let right = ((left_px + width as f32) / self.width as f32) * 2. - 1.;
 			let bottom = -(((bar.y as f32 + bar.height as f32) / self.height as f32) * 2. - 1.);
 			let top = -((bar.y as f32 / self.height as f32) * 2. - 1.);
+
+			// Every two indices is an x and a y position. Two triangles per loop.
 			positions[vert_index] = left;
 			positions[vert_index + 1] = bottom;
 			positions[vert_index + 2] = left;
@@ -409,6 +412,57 @@ impl BarChart {
 			positions[vert_index + 9] = bottom;
 			positions[vert_index + 10] = right;
 			positions[vert_index + 11] = top;
+		}
+
+		positions
+	}
+
+	pub fn get_relative_bar_vertex_positions(&self) -> Box<[f32]> {
+		let bar_vertex_count = self.bars.len() * 6 * 4;
+		let mut positions = vec![0.; bar_vertex_count].into_boxed_slice();
+
+		for (i, bar) in self.bars.iter().enumerate() {
+			let vert_index = i * 6 * 4;
+
+			let bar_width = bar.width as f32;
+			let bar_height = bar.height as f32;
+
+			/*
+			0: relative width of nth vertex
+			1: relative height of nth vertex
+			2: pixel width of bar
+			3: pixel height of bar
+			4: ...
+			*/
+			positions[vert_index] = 0.;
+			positions[vert_index + 1] = 0.;
+			positions[vert_index + 2] = bar_width;
+			positions[vert_index + 3] = bar_height;
+
+			positions[vert_index + 4] = 0.;
+			positions[vert_index + 5] = 1.;
+			positions[vert_index + 6] = bar_width;
+			positions[vert_index + 7] = bar_height;
+
+			positions[vert_index + 8] = 1.;
+			positions[vert_index + 9] = 1.;
+			positions[vert_index + 10] = bar_width;
+			positions[vert_index + 11] = bar_height;
+
+			positions[vert_index + 12] = 1.;
+			positions[vert_index + 13] = 0.;
+			positions[vert_index + 14] = bar_width;
+			positions[vert_index + 15] = bar_height;
+
+			positions[vert_index + 16] = 0.;
+			positions[vert_index + 17] = 0.;
+			positions[vert_index + 18] = bar_width;
+			positions[vert_index + 19] = bar_height;
+
+			positions[vert_index + 20] = 1.;
+			positions[vert_index + 21] = 1.;
+			positions[vert_index + 22] = bar_width;
+			positions[vert_index + 23] = bar_height;
 		}
 
 		positions
@@ -505,6 +559,15 @@ impl BarChart {
 
 	pub fn get_hovered_bar_index(&self) -> Option<usize> {
 		self.hovered_bar_index
+	}
+
+	pub fn get_corner_radius(&self) -> u32 {
+		let first_bar = self.bars.first();
+		if let Some(first_bar) = first_bar {
+			min(self.bar_corner_radius, first_bar.width / 2)
+		} else {
+			0
+		}
 	}
 
 	fn draw_bars(&mut self) {
