@@ -11,12 +11,6 @@ import {
 	ValueAxisLayout as WasmValueAxisLayout,
 } from "../../graph-renderer/pkg/graph_renderer.js";
 
-// import {
-// 	clamp,
-// 	fillTextWithMaxWidth,
-// 	roundToNearestMultiple,
-// } from "../utils.js";
-
 import {
 	type Color,
 	type GraphData,
@@ -168,11 +162,17 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	getScaleLineXAt(i: number) {
 		return this.wasmGraph.get_scale_line_x_at(i);
 	}
-	getVertexPositions() {
-		return this.wasmGraph.get_vertex_positions();
+	getVertexPositions_general() {
+		return this.wasmGraph.get_general_vertex_positions();
 	}
-	getVertexColors() {
-		return this.wasmGraph.get_vertex_colors();
+	getVertexColors_general() {
+		return this.wasmGraph.get_general_vertex_colors();
+	}
+	getVertexPositions_bars() {
+		return this.wasmGraph.get_bar_vertex_positions();
+	}
+	getVertexColors_bars() {
+		return this.wasmGraph.get_bar_vertex_colors();
 	}
 	getBarsLen() {
 		return this.wasmGraph.get_bars_len();
@@ -487,11 +487,15 @@ export default class BarChart
 		trace();
 		this.wasmGraphRenderer.update(timestamp, this.pointer);
 
-		const vertexArr = this.wasmGraphRenderer.getVertexPositions();
-		const colorsArr = this.wasmGraphRenderer.getVertexColors();
+		const vertexArr_general =
+			this.wasmGraphRenderer.getVertexPositions_general();
+		const colorsArr_general = this.wasmGraphRenderer.getVertexColors_general();
+		const vertexArr_bars = this.wasmGraphRenderer.getVertexPositions_bars();
+		const colorsArr_bars = this.wasmGraphRenderer.getVertexColors_bars();
 
-		this.glRenderer.updatePositionsBuffer(vertexArr);
-		this.glRenderer.updateColorsBuffer(colorsArr);
+		this.glRenderer.updateGeneralBuffers(vertexArr_general, colorsArr_general);
+		this.glRenderer.updateBarsBuffers(vertexArr_bars, colorsArr_bars);
+		trace("after");
 	}
 
 	public render(timestamp: number) {

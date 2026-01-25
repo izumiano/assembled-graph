@@ -47,7 +47,6 @@ DefineAnimation!(ClickingBarAnimData, CurrentClickingBarAnimData, color_t);
 #[derive(Debug)]
 struct BarData {
 	title: String,
-	// _value: f32,
 	x: u32,
 	y: u32,
 	width: u32,
@@ -364,7 +363,29 @@ impl BarChart {
 		}
 	}
 
-	fn get_bar_vertex_positions(&self, positions: &mut [f32]) {
+	fn get_scale_line_vertex_colors(&self, colors: &mut [f32]) {
+		for i in 0..self.scale_line_count {
+			let scale_line = &self.scale_lines[i];
+			let vert_index = i * 6 * 4;
+
+			let color = self
+				.background_color
+				.lerp(&self.value_axis_color, scale_line.intensity as f32 / 255.);
+
+			for offset in 0..6 {
+				let offset = offset * 4;
+				colors[vert_index + offset] = color.r as f32 / 255.;
+				colors[vert_index + offset + 1] = color.g as f32 / 255.;
+				colors[vert_index + offset + 2] = color.b as f32 / 255.;
+				colors[vert_index + offset + 3] = color.a as f32 / 255.;
+			}
+		}
+	}
+
+	pub fn get_bar_vertex_positions(&self) -> Box<[f32]> {
+		let bar_vertex_count = self.bars.len() * 6 * 2;
+		let mut positions = vec![0.; bar_vertex_count].into_boxed_slice();
+
 		for (i, bar) in self.bars.iter().enumerate() {
 			let vert_index = i * 6 * 2;
 
@@ -389,28 +410,14 @@ impl BarChart {
 			positions[vert_index + 10] = right;
 			positions[vert_index + 11] = top;
 		}
+
+		positions
 	}
 
-	fn get_scale_line_vertex_colors(&self, colors: &mut [f32]) {
-		for i in 0..self.scale_line_count {
-			let scale_line = &self.scale_lines[i];
-			let vert_index = i * 6 * 4;
+	pub fn get_bar_vertex_colors(&self) -> Box<[f32]> {
+		let bar_vertex_count = self.bars.len() * 6 * 4;
+		let mut colors = vec![0.; bar_vertex_count].into_boxed_slice();
 
-			let color = self
-				.background_color
-				.lerp(&self.value_axis_color, scale_line.intensity as f32 / 255.);
-
-			for offset in 0..6 {
-				let offset = offset * 4;
-				colors[vert_index + offset] = color.r as f32 / 255.;
-				colors[vert_index + offset + 1] = color.g as f32 / 255.;
-				colors[vert_index + offset + 2] = color.b as f32 / 255.;
-				colors[vert_index + offset + 3] = color.a as f32 / 255.;
-			}
-		}
-	}
-
-	fn get_bar_vertex_colors(&self, colors: &mut [f32]) {
 		for (i, bar) in self.bars.iter().enumerate() {
 			let vert_index = i * 6 * 4;
 
@@ -424,28 +431,26 @@ impl BarChart {
 				colors[vert_index + offset + 3] = color.a as f32 / 255.;
 			}
 		}
+
+		colors
 	}
 
-	pub fn get_vertex_positions(&self) -> Box<[f32]> {
-		trace!("get_vertex_positions");
-		let bar_vertex_count = self.bars.len() * 6 * 2;
+	pub fn get_general_vertex_positions(&self) -> Box<[f32]> {
+		trace!("get_general_vertex_positions");
 		let scale_lines_vertex_count = self.scale_line_count * 6 * 2;
-		let mut positions = vec![0.; scale_lines_vertex_count + bar_vertex_count].into_boxed_slice();
+		let mut positions = vec![0.; scale_lines_vertex_count].into_boxed_slice();
 
 		self.get_scale_line_vertex_positions(&mut positions[..scale_lines_vertex_count]);
-		self.get_bar_vertex_positions(&mut positions[scale_lines_vertex_count..]);
 
 		positions
 	}
 
-	pub fn get_vertex_colors(&self) -> Box<[f32]> {
-		trace!("get_vertex_colors");
-		let bar_vertex_count = self.bars.len() * 6 * 4;
+	pub fn get_general_vertex_colors(&self) -> Box<[f32]> {
+		trace!("get_general_vertex_colors");
 		let scale_lines_vertex_count = self.scale_line_count * 6 * 4;
-		let mut colors = vec![0.; scale_lines_vertex_count + bar_vertex_count].into_boxed_slice();
+		let mut colors = vec![0.; scale_lines_vertex_count].into_boxed_slice();
 
 		self.get_scale_line_vertex_colors(&mut colors[..scale_lines_vertex_count]);
-		self.get_bar_vertex_colors(&mut colors[scale_lines_vertex_count..]);
 
 		colors
 	}

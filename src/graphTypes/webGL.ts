@@ -1,9 +1,8 @@
-import { mat4 } from "gl-matrix";
 import type { Color } from "./graphRenderer";
 import { logError, trace } from "@izumiano/vite-logger";
 
 export type WebGLBuffers = {
-	[key: string]: { buf: WebGLBuffer; size: number };
+	[key: string]: WebGLBufferInfo;
 };
 
 export interface WebGLBufferInfo {
@@ -18,16 +17,11 @@ export interface RequiredUniformLocations {
 
 export interface IWebGL<TBuffers extends WebGLBuffers> {
 	initBuffers(gl: WebGL2RenderingContext): TBuffers;
-	setAttributes(gl: WebGL2RenderingContext): void;
+	draw(timestamp: number): void;
 }
 
-export default class WebGLRenderer<
-	TAttribLocations,
-	TUniformLocations extends RequiredUniformLocations,
-	TBuffers extends WebGLBuffers,
-> {
+export default class WebGLRenderer<TBuffers extends WebGLBuffers> {
 	public gl: WebGL2RenderingContext;
-	protected programInfo: GLProgramInfo<TAttribLocations, TUniformLocations>;
 
 	protected buffers: TBuffers;
 
@@ -36,17 +30,9 @@ export default class WebGLRenderer<
 	constructor({
 		canvas,
 		backgroundColor,
-		vsSource,
-		fsSource,
-		attribs,
-		uniforms,
 	}: {
 		canvas: HTMLCanvasElement;
 		backgroundColor: Color;
-		vsSource: string;
-		fsSource: string;
-		attribs: (keyof TAttribLocations)[];
-		uniforms: (keyof TUniformLocations)[];
 	}) {
 		trace();
 		const gl = canvas.getContext("webgl2");
@@ -55,50 +41,9 @@ export default class WebGLRenderer<
 			throw new Error("Failed getting canvas rendering context");
 		}
 
-		const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
-
-		if (!shaderProgram) {
-			throw new Error("failed initializing shader program");
-		}
-
-		const attribLocations = attribs.reduce((prev, attrib) => {
-			const str = attrib.toString();
-			const varName = `a${str[0].toUpperCase()}${str.slice(1)}`;
-			const location = gl.getAttribLocation(shaderProgram, varName);
-			if (location == null || location < 0) {
-				throw new Error(`Failed getting location for '${varName}'`);
-			}
-			return {
-				// biome-ignore lint/performance/noAccumulatingSpread: <this isn't run often>
-				...prev,
-				[attrib]: location,
-			};
-		}, {} as TAttribLocations);
-
-		const uniformLocations = uniforms.reduce((prev, uniform) => {
-			const str = uniform.toString();
-			const varName = `u${str[0].toUpperCase()}${str.slice(1)}`;
-			const location = gl.getUniformLocation(shaderProgram, varName);
-			if (location == null || Number(location) < 0) {
-				throw new Error(`Failed getting location for '${varName}'`);
-			}
-			return {
-				// biome-ignore lint/performance/noAccumulatingSpread: <this isn't run often>
-				...prev,
-				[uniform]: location,
-			};
-		}, {} as TUniformLocations);
-
-		const programInfo: GLProgramInfo<TAttribLocations, TUniformLocations> = {
-			program: shaderProgram,
-			attribLocations,
-			uniformLocations,
-		};
-
 		const buffers = this.initBuffers(gl);
 
 		this.gl = gl;
-		this.programInfo = programInfo;
 		this.buffers = buffers;
 		this.backgroundColor = { ...backgroundColor, a: backgroundColor.a ?? 255 };
 	}
@@ -109,14 +54,7 @@ export default class WebGLRenderer<
 		);
 	}
 
-	protected setAttributes(_gl: WebGL2RenderingContext) {
-		throw new Error(
-			"Everything inheriting from webGL should implement it's own setAttributes function",
-		);
-	}
-
 	public draw(_timestamp: number) {
-		trace();
 		const gl = this.gl;
 
 		gl.clearColor(
@@ -127,30 +65,6 @@ export default class WebGLRenderer<
 		);
 
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-		const projectionMatrix = mat4.create();
-
-		const modelViewMatrix = mat4.create();
-
-		this.setAttributes(gl);
-
-		gl.useProgram(this.programInfo.program);
-
-		gl.uniformMatrix4fv(
-			this.programInfo.uniformLocations.projectionMatrix,
-			false,
-			Array.from(projectionMatrix),
-		);
-		gl.uniformMatrix4fv(
-			this.programInfo.uniformLocations.modelViewMatrix,
-			false,
-			Array.from(modelViewMatrix),
-		);
-		{
-			const offset = 0;
-			const vertexCount = this.buffers.positions.size / 2;
-			gl.drawArrays(gl.TRIANGLES, offset, vertexCount);
-		}
 	}
 }
 
@@ -184,22 +98,27 @@ function loadShader(gl: WebGL2RenderingContext, type: GLenum, source: string) {
 	return shader;
 }
 
-function initShaderProgram(
+export function initShaderProgram<
+	TAttribLocations,
+	TUniformLocations extends RequiredUniformLocations,
+>(
 	gl: WebGL2RenderingContext,
 	vsSource: string,
 	fsSource: string,
+	attribs: (keyof TAttribLocations)[],
+	uniforms: (keyof TUniformLocations)[],
 ) {
 	const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
 	const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
 
 	if (!vertexShader) {
-		logError("failed loading vertex shader", { vsSource });
-		return;
+		throw new Error(`failed loading vertex shader\n--vsSource--:\n${vsSource}`);
 	}
 
 	if (!fragmentShader) {
-		logError("failed loading fragment shader", { fsSource });
-		return;
+		throw new Error(
+			`failed loading fragment shader\n--fsSource--:\n${fsSource}`,
+		);
 	}
 
 	const shaderProgram = gl.createProgram();
@@ -208,11 +127,46 @@ function initShaderProgram(
 	gl.linkProgram(shaderProgram);
 
 	if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-		logError(gl.getProgramInfoLog(shaderProgram));
-		return;
+		throw new Error(
+			`Failed linking shader program with error: [${gl.getProgramInfoLog(shaderProgram)}]`,
+		);
 	}
 
-	return shaderProgram;
+	const attribLocations = attribs.reduce((prev, attrib) => {
+		const str = attrib.toString();
+		const varName = `a${str[0].toUpperCase()}${str.slice(1)}`;
+		const location = gl.getAttribLocation(shaderProgram, varName);
+		if (location == null || location < 0) {
+			throw new Error(`Failed getting location for '${varName}'`);
+		}
+		return {
+			// biome-ignore lint/performance/noAccumulatingSpread: <this isn't run often>
+			...prev,
+			[attrib]: location,
+		};
+	}, {} as TAttribLocations);
+
+	const uniformLocations = uniforms.reduce((prev, uniform) => {
+		const str = uniform.toString();
+		const varName = `u${str[0].toUpperCase()}${str.slice(1)}`;
+		const location = gl.getUniformLocation(shaderProgram, varName);
+		if (location == null || Number(location) < 0) {
+			throw new Error(`Failed getting location for '${varName}'`);
+		}
+		return {
+			// biome-ignore lint/performance/noAccumulatingSpread: <this isn't run often>
+			...prev,
+			[uniform]: location,
+		};
+	}, {} as TUniformLocations);
+
+	const programInfo: GLProgramInfo<TAttribLocations, TUniformLocations> = {
+		program: shaderProgram,
+		attribLocations,
+		uniformLocations,
+	};
+
+	return programInfo;
 }
 
 export function debugColorArray(colors: Float32Array) {
