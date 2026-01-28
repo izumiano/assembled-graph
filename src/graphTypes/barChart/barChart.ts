@@ -49,6 +49,7 @@ interface BarOptions {
 	cornerRadius?: number;
 	minWidth?: number;
 	minHeight?: number;
+	maxBars?: number;
 }
 
 export interface BarChartOptions extends GraphRendererOptions {
@@ -268,8 +269,10 @@ export default class BarChart
 		width: number,
 		height: number,
 		data: BarChartData,
-		options?: BarChartOptions,
-		callbacks?: BarChartCallbacks,
+		{
+			options,
+			callbacks,
+		}: { options?: BarChartOptions; callbacks?: BarChartCallbacks },
 	) {
 		trace();
 		options ??= {};
@@ -314,6 +317,7 @@ export default class BarChart
 				},
 				minWidth: (options.barOptions?.minWidth ?? 1) * devicePixelRatio,
 				minHeight: (options.barOptions?.minHeight ?? 1) * devicePixelRatio,
+				maxBars: options.barOptions?.maxBars ?? 2,
 			},
 			titleFontSize: options.titleFontSize ?? 10,
 			valueAxis: {
@@ -330,7 +334,11 @@ export default class BarChart
 			canvas,
 			width,
 			height,
-			new BarChartGL(canvas, options.backgroundColor ?? { r: 0, g: 0, b: 0 }),
+			new BarChartGL({
+				canvas,
+				backgroundColor: options.backgroundColor ?? { r: 0, g: 0, b: 0 },
+				maxBars: internalOptions.barOptions.maxBars,
+			}),
 			internalOptions,
 		);
 

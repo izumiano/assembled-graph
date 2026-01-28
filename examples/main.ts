@@ -26,12 +26,8 @@ const data: { title: string; displayTitle?: string; value: number }[] = [
 ];
 
 const graphManager = await GraphManager.create();
-const graph = new BarChart(
-	canvas,
-	width,
-	height,
-	data,
-	{
+const graph = new BarChart(canvas, width, height, data, {
+	options: {
 		backgroundColor: { r: 10, g: 5, b: 40 },
 		barOptions: {
 			cornerRadius: 20,
@@ -47,7 +43,7 @@ const graph = new BarChart(
 		},
 		positioning: { bottom: 30, top: 20, left: 10, right: 20 },
 	},
-	{
+	callbacks: {
 		onHover: {
 			func: (info) => {
 				if (!info) {
@@ -78,7 +74,7 @@ const graph = new BarChart(
 			},
 		},
 	},
-);
+});
 if (graphManager) {
 	graphManager.addGraph(graph);
 

@@ -20,21 +20,26 @@ export interface IWebGL<TBuffers extends WebGLBuffers> {
 	draw(timestamp: number): void;
 }
 
-export default class WebGLRenderer<TBuffers extends WebGLBuffers> {
+export default class WebGLRenderer<TBuffers extends WebGLBuffers, TOptions> {
 	public gl: WebGL2RenderingContext;
 
 	protected buffers: TBuffers;
+	protected options: TOptions;
 
 	private backgroundColor: Required<Color>;
 
 	constructor({
 		canvas,
 		backgroundColor,
+		options,
 	}: {
 		canvas: HTMLCanvasElement;
 		backgroundColor: Color;
+		options: TOptions;
 	}) {
 		trace();
+		this.options = options;
+
 		const gl = canvas.getContext("webgl2");
 
 		if (!gl) {
@@ -50,7 +55,7 @@ export default class WebGLRenderer<TBuffers extends WebGLBuffers> {
 
 	protected initBuffers(_gl: WebGL2RenderingContext): TBuffers {
 		throw new Error(
-			"Everything inheriting from webGL should implement it's own initBuffers function",
+			"Everything inheriting from WebGLRenderer should implement it's own initBuffers function",
 		);
 	}
 

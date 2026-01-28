@@ -13,7 +13,8 @@ import fsSource_bars from "./bars.frag";
 import vsSource_bars from "./bars.vert";
 import { mat4 } from "gl-matrix";
 
-const PREALLOCATED_BAR_VERTEX_ARRAY = 12 * 1000;
+const MAX_GENERAL_VERTICES = 100 * 6;
+const VERTICES_PER_BAR = 6;
 
 type BarChartAttribLocations_General = {
 	vertexPosition: number;
@@ -47,7 +48,7 @@ type BarChartBuffers = {
 };
 
 export default class BarChartGL
-	extends WebGLRenderer<BarChartBuffers>
+	extends WebGLRenderer<BarChartBuffers, { maxBars: number }>
 	implements IWebGL<BarChartBuffers>
 {
 	public cornerRadius: number = 0;
@@ -61,10 +62,15 @@ export default class BarChartGL
 		BarChartUniformLocations_Bars
 	>;
 
-	constructor(canvas: HTMLCanvasElement, backgroundColor: Color) {
+	constructor({
+		canvas,
+		backgroundColor,
+		maxBars,
+	}: { canvas: HTMLCanvasElement; backgroundColor: Color; maxBars: number }) {
 		super({
 			canvas,
 			backgroundColor,
+			options: { maxBars },
 		});
 
 		this.programInfo_general = initShaderProgram(
@@ -90,7 +96,7 @@ export default class BarChartGL
 
 		gl.bufferData(
 			gl.ARRAY_BUFFER,
-			new Float32Array(PREALLOCATED_BAR_VERTEX_ARRAY),
+			new Float32Array(MAX_GENERAL_VERTICES * 2),
 			gl.DYNAMIC_DRAW,
 		);
 
@@ -100,7 +106,7 @@ export default class BarChartGL
 
 		gl.bufferData(
 			gl.ARRAY_BUFFER,
-			new Float32Array(PREALLOCATED_BAR_VERTEX_ARRAY * 4),
+			new Float32Array(MAX_GENERAL_VERTICES * 4),
 			gl.DYNAMIC_DRAW,
 		);
 
@@ -110,7 +116,7 @@ export default class BarChartGL
 
 		gl.bufferData(
 			gl.ARRAY_BUFFER,
-			new Float32Array(PREALLOCATED_BAR_VERTEX_ARRAY),
+			new Float32Array(this.options.maxBars * VERTICES_PER_BAR * 2),
 			gl.DYNAMIC_DRAW,
 		);
 
@@ -120,7 +126,7 @@ export default class BarChartGL
 
 		gl.bufferData(
 			gl.ARRAY_BUFFER,
-			new Float32Array(PREALLOCATED_BAR_VERTEX_ARRAY * 4),
+			new Float32Array(this.options.maxBars * VERTICES_PER_BAR * 4),
 			gl.DYNAMIC_DRAW,
 		);
 
@@ -130,7 +136,7 @@ export default class BarChartGL
 
 		gl.bufferData(
 			gl.ARRAY_BUFFER,
-			new Float32Array(PREALLOCATED_BAR_VERTEX_ARRAY * 4),
+			new Float32Array(this.options.maxBars * VERTICES_PER_BAR * 4),
 			gl.DYNAMIC_DRAW,
 		);
 

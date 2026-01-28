@@ -56,7 +56,7 @@ export type UnknownGraphRenderer = GraphRenderer<
 	unknown,
 	WasmGraphRendererInterop<unknown>,
 	GraphRendererOptions,
-	WebGLRenderer<WebGLBuffers>
+	WebGLRenderer<WebGLBuffers, unknown>
 >;
 
 export const devicePixelRatio = window.devicePixelRatio || 1;
@@ -64,7 +64,7 @@ export class GraphRenderer<
 	T,
 	WasmInterop extends WasmGraphRendererInterop<T>,
 	TOptions extends GraphRendererOptions,
-	TGLRenderer extends WebGLRenderer<WebGLBuffers>,
+	TGLRenderer extends WebGLRenderer<WebGLBuffers, unknown>,
 > {
 	protected canvas: HTMLCanvasElement;
 	protected ctx: WebGL2RenderingContext;
