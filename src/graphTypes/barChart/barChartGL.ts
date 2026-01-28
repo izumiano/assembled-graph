@@ -4,7 +4,7 @@ import WebGLRenderer, {
 	type GLProgramInfo,
 	type IWebGL,
 	type WebGLBufferInfo,
-} from "../webGL";
+} from "../webGLRenderer";
 import type { Color } from "../graphRenderer";
 
 import fsSource_general from "./general.frag";

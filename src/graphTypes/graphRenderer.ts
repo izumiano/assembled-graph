@@ -1,7 +1,7 @@
 import { logError, trace, traceWarn } from "@izumiano/vite-logger";
 import type { ClickingState } from "../graphManager";
-import type { WebGLBuffers } from "./webGL";
-import type WebGLRenderer from "./webGL";
+import type { WebGLBuffers } from "./webGLRenderer";
+import type WebGLRenderer from "./webGLRenderer";
 
 export interface Color {
 	r: number;
