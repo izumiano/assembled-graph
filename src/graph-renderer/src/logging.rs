@@ -143,7 +143,7 @@ macro_rules! log_format {
 		format!("{}: {:?}", stringify!($var), $var)
 	};
 	($var:expr) => {{
-		$var
+		format!("{}", $var)
 	}};
 	($($var:expr),*) => {{
 		let mut message = String::from("");
@@ -232,6 +232,35 @@ macro_rules! trace {
 			}
 		}
 	};
+}
+
+#[macro_export]
+macro_rules! wasm_assert {
+	($val:expr $(,)?) => {{
+		#[cfg(debug_assertions)]
+		{
+			let val_name = stringify!($val);
+
+			if !$val {
+				format!("assertion failed: `{}`", val_name).log_error();
+				panic!();
+			}
+		}
+	}};
+	($val:expr, $($arg:tt)+) => {{
+		#[cfg(debug_assertions)]
+		{
+			#[allow(unused_imports)]
+			use $crate::logging::*;
+
+			let val_name = stringify!($val);
+
+			if !$val {
+				format!("assertion failed: `{}`: {}", val_name, format_args!($($arg)+)).log_error();
+				panic!();
+			}
+		}
+	}};
 }
 
 #[macro_export]
