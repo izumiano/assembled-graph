@@ -156,6 +156,7 @@ export class GraphRenderer<
 		this.hasInitialized = true;
 		this.wasmMemory = memory;
 		this.wasmGraphRenderer = wasmGraphRenderer;
+		this.glRenderer.init(memory);
 	}
 
 	protected render(timestamp: number) {

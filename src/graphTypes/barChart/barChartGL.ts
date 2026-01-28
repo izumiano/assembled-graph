@@ -12,6 +12,7 @@ import vsSource_general from "./general.vert";
 import fsSource_bars from "./bars.frag";
 import vsSource_bars from "./bars.vert";
 import { mat4 } from "gl-matrix";
+import type { WasmFloat32Array } from "../../graph-renderer/pkg/graph_renderer";
 
 const MAX_GENERAL_VERTICES = 100 * 6;
 const VERTICES_PER_BAR = 6;
@@ -265,58 +266,81 @@ export default class BarChartGL
 		);
 	}
 
-	private updatePositionsBuffer_general(positions: Float32Array) {
+	private updatePositionsBuffer_general(positions: WasmFloat32Array) {
 		trace({ positions });
 		this.gl.bindBuffer(
 			this.gl.ARRAY_BUFFER,
 			this.buffers.positions_general.buf,
 		);
-		this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, positions);
-		this.buffers.positions_general.size = positions.length;
+		this.gl.bufferSubData(
+			this.gl.ARRAY_BUFFER,
+			0,
+			this.wasmArrayToFloat32Array(positions),
+		);
+		this.buffers.positions_general.size = positions.size;
 	}
 
-	private updateColorsBuffer_general(colors: Float32Array) {
+	private updateColorsBuffer_general(colors: WasmFloat32Array) {
 		trace({ colors });
 		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.colors_general.buf);
-		this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, colors);
-		this.buffers.colors_general.size = colors.length;
+		this.gl.bufferSubData(
+			this.gl.ARRAY_BUFFER,
+			0,
+			this.wasmArrayToFloat32Array(colors),
+		);
+		this.buffers.colors_general.size = colors.size;
 	}
 
-	public updateGeneralBuffers(positions: Float32Array, colors: Float32Array) {
+	public updateGeneralBuffers(
+		positions: WasmFloat32Array,
+		colors: WasmFloat32Array,
+	) {
 		trace();
 		this.gl.useProgram(this.programInfo_general.program);
 		this.updatePositionsBuffer_general(positions);
 		this.updateColorsBuffer_general(colors);
 	}
 
-	public updatePositionsBuffer_bars(positions: Float32Array) {
+	public updatePositionsBuffer_bars(positions: WasmFloat32Array) {
 		trace({ positions });
 		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.positions_bars.buf);
-		this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, positions);
-		this.buffers.positions_bars.size = positions.length;
+		this.gl.bufferSubData(
+			this.gl.ARRAY_BUFFER,
+			0,
+			this.wasmArrayToFloat32Array(positions),
+		);
+		this.buffers.positions_bars.size = positions.size;
 	}
 
-	public updateColorsBuffer_bars(colors: Float32Array) {
+	public updateColorsBuffer_bars(colors: WasmFloat32Array) {
 		trace({ colors });
 		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.colors_bars.buf);
-		this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, colors);
-		this.buffers.colors_bars.size = colors.length;
+		this.gl.bufferSubData(
+			this.gl.ARRAY_BUFFER,
+			0,
+			this.wasmArrayToFloat32Array(colors),
+		);
+		this.buffers.colors_bars.size = colors.size;
 	}
 
-	public updateRelativeBarPositionsBuffer(heights: Float32Array) {
+	public updateRelativeBarPositionsBuffer(heights: WasmFloat32Array) {
 		trace({ heights });
 		this.gl.bindBuffer(
 			this.gl.ARRAY_BUFFER,
 			this.buffers.relativeBarPositions.buf,
 		);
-		this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, heights);
-		this.buffers.relativeBarPositions.size = heights.length;
+		this.gl.bufferSubData(
+			this.gl.ARRAY_BUFFER,
+			0,
+			this.wasmArrayToFloat32Array(heights),
+		);
+		this.buffers.relativeBarPositions.size = heights.size;
 	}
 
 	public updateBarsBuffers(
-		positions: Float32Array,
-		colors: Float32Array,
-		relativeBarPositions: Float32Array,
+		positions: WasmFloat32Array,
+		colors: WasmFloat32Array,
+		relativeBarPositions: WasmFloat32Array,
 	) {
 		trace();
 		this.gl.useProgram(this.programInfo_bars.program);

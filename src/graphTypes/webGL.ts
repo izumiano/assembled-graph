@@ -28,6 +28,8 @@ export default class WebGLRenderer<TBuffers extends WebGLBuffers, TOptions> {
 
 	private backgroundColor: Required<Color>;
 
+	protected wasmMemory!: WebAssembly.Memory;
+
 	constructor({
 		canvas,
 		backgroundColor,
@@ -57,6 +59,14 @@ export default class WebGLRenderer<TBuffers extends WebGLBuffers, TOptions> {
 		throw new Error(
 			"Everything inheriting from WebGLRenderer should implement it's own initBuffers function",
 		);
+	}
+
+	public wasmArrayToFloat32Array(arr: { pointer: number; size: number }) {
+		return new Float32Array(this.wasmMemory.buffer, arr.pointer, arr.size);
+	}
+
+	public init(memory: WebAssembly.Memory) {
+		this.wasmMemory = memory;
 	}
 
 	public draw(_timestamp: number) {

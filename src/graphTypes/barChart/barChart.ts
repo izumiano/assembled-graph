@@ -1,4 +1,4 @@
-import { trace } from "@izumiano/vite-logger";
+import { logWarn, trace } from "@izumiano/vite-logger";
 import {
 	BarChart as WasmBarChart,
 	BarChartLayout as WasmBarChartLayout,
@@ -108,6 +108,7 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 					colorToWasmColor(options.barOptions.hoverColor),
 					colorToWasmColor(options.barOptions.selectedColor),
 					options.barOptions.hoverScale,
+					options.barOptions.maxBars,
 				),
 
 				colorToWasmColor(options.valueAxis.color),
@@ -317,7 +318,7 @@ export default class BarChart
 				},
 				minWidth: (options.barOptions?.minWidth ?? 1) * devicePixelRatio,
 				minHeight: (options.barOptions?.minHeight ?? 1) * devicePixelRatio,
-				maxBars: options.barOptions?.maxBars ?? 2,
+				maxBars: options.barOptions?.maxBars ?? 1000,
 			},
 			titleFontSize: options.titleFontSize ?? 10,
 			valueAxis: {
@@ -385,6 +386,13 @@ export default class BarChart
 	public updateData(data: BarChartData, timestamp: number) {
 		trace(data);
 		if (data === this.data) {
+			return;
+		}
+
+		if (data.length > this.options.barOptions.maxBars) {
+			logWarn(
+				`Cannot update data to length greater than maxBars, {${data.length}}, {${this.options.barOptions.maxBars}}`,
+			);
 			return;
 		}
 
@@ -497,14 +505,20 @@ export default class BarChart
 	public update(timestamp: number) {
 		trace();
 		this.wasmGraphRenderer.update(timestamp, this.pointer);
+		trace("after wasm update");
 
 		const vertexArr_general =
 			this.wasmGraphRenderer.getVertexPositions_general();
+		trace(1);
 		const colorsArr_general = this.wasmGraphRenderer.getVertexColors_general();
+		trace(2);
 		const vertexArr_bars = this.wasmGraphRenderer.getVertexPositions_bars();
+		trace(3);
 		const colorsArr_bars = this.wasmGraphRenderer.getVertexColors_bars();
+		trace(4);
 		const relativeBarPositions =
 			this.wasmGraphRenderer.getRelativeBarVertexPositions();
+		trace(5);
 
 		this.glRenderer.updateGeneralBuffers(vertexArr_general, colorsArr_general);
 		this.glRenderer.updateBarsBuffers(
@@ -513,6 +527,7 @@ export default class BarChart
 			relativeBarPositions,
 		);
 		this.glRenderer.cornerRadius = this.wasmGraphRenderer.getCornerRadius();
+		trace("after");
 	}
 
 	public render(timestamp: number) {

@@ -63,6 +63,7 @@ struct BarData {
 	clicking_bar_anim: ClickingBarAnimData,
 }
 
+#[derive(Debug, Clone, Copy)]
 struct ScaleLineObject {
 	x: u32,
 	y: u32,
@@ -109,6 +110,7 @@ pub struct BarOptions {
 	hover_color: Color,
 	selected_color: Color,
 	hover_scale: f32,
+	max_bars: usize,
 }
 
 #[wasm_struct]
@@ -126,6 +128,8 @@ pub enum ClickingState {
 	JustReleased,
 }
 
+const VERTICES_PER_BAR: usize = 6;
+
 #[wasm_bindgen]
 pub struct BarChart {
 	data: Vec<DataPoint>,
@@ -136,8 +140,7 @@ pub struct BarChart {
 	background_color: Color,
 
 	bars: Vec<BarData>,
-	scale_lines: Vec<ScaleLineObject>,
-	scale_line_count: usize,
+	scale_lines: PreAllocatedCollection<ScaleLineObject>,
 
 	bar_color: Color,
 	bar_hover_color: Color,
@@ -168,6 +171,13 @@ pub struct BarChart {
 	hovered_bar_index: Option<usize>,
 
 	updated_data: bool,
+
+	vertex_positions_general: PreAllocatedCollection<f32>,
+	vertex_colors_general: PreAllocatedCollection<f32>,
+
+	vertex_positions_bars: PreAllocatedCollection<f32>,
+	vertex_colors_bars: PreAllocatedCollection<f32>,
+	vertex_relative_bar_positions: PreAllocatedCollection<f32>,
 }
 
 fn handle_data(
@@ -240,19 +250,20 @@ impl BarChart {
 		let size = width * height * 4;
 		let pixels = vec![0; size as usize];
 
-		let mut scale_lines: Vec<ScaleLineObject> = Vec::with_capacity(100);
-		let scale_line_count = 0;
+		let max_scale_lines = 100;
 
-		for _ in 0..100 {
-			scale_lines.push(ScaleLineObject {
+		let scale_lines = PreAllocatedCollection::new(
+			ScaleLineObject {
 				x: 0,
 				y: 0,
 				width: 0,
 				height: 0,
 				intensity: 0,
 				value: 0.0,
-			});
-		}
+			},
+			0,
+			max_scale_lines,
+		);
 
 		let (data, bars, max_val) = handle_data(
 			data,
@@ -260,6 +271,18 @@ impl BarChart {
 			height - layout.positioning.bottom - layout.positioning.top,
 			start_timestamp,
 		);
+
+		let max_bars = options.bar_options.max_bars;
+
+		let vertex_positions_general =
+			PreAllocatedCollection::new(0., 0, max_scale_lines * VERTICES_PER_BAR * 2);
+		let vertex_colors_general =
+			PreAllocatedCollection::new(0., 0, max_scale_lines * VERTICES_PER_BAR * 4);
+
+		let vertex_positions_bars = PreAllocatedCollection::new(0., 0, max_bars * VERTICES_PER_BAR * 2);
+		let vertex_colors_bars = PreAllocatedCollection::new(0., 0, max_bars * VERTICES_PER_BAR * 4);
+		let vertex_relative_bar_positions =
+			PreAllocatedCollection::new(0., 0, max_bars * VERTICES_PER_BAR * 4);
 
 		BarChart {
 			data,
@@ -270,7 +293,6 @@ impl BarChart {
 			background_color: options.background_color,
 			bars,
 			scale_lines,
-			scale_line_count,
 			bottom: layout.positioning.bottom,
 			top: layout.positioning.top,
 			left: layout.positioning.left,
@@ -292,6 +314,13 @@ impl BarChart {
 			bar_selected_color: options.bar_options.selected_color,
 			value_axis_color: options.value_axis_color,
 			updated_data: false,
+
+			vertex_positions_general,
+			vertex_colors_general,
+
+			vertex_positions_bars,
+			vertex_colors_bars,
+			vertex_relative_bar_positions,
 		}
 	}
 
@@ -332,10 +361,11 @@ impl BarChart {
 		self.updated_data = true;
 	}
 
-	fn get_scale_line_vertex_positions(&self, positions: &mut [f32]) {
-		for i in 0..self.scale_line_count {
-			let scale_line = &self.scale_lines[i];
-			let vert_index = i * 6 * 2;
+	fn get_scale_line_vertex_positions(&mut self) {
+		let positions = &mut self.vertex_positions_general;
+		trace!(positions.len());
+		for (i, scale_line) in self.scale_lines.into_iter().enumerate() {
+			let vert_index = i * VERTICES_PER_BAR * 2;
 
 			let left = scale_line.x;
 			let right = left + scale_line.width;
@@ -363,16 +393,16 @@ impl BarChart {
 		}
 	}
 
-	fn get_scale_line_vertex_colors(&self, colors: &mut [f32]) {
-		for i in 0..self.scale_line_count {
-			let scale_line = &self.scale_lines[i];
-			let vert_index = i * 6 * 4;
+	fn get_scale_line_vertex_colors(&mut self) {
+		let colors = &mut self.vertex_colors_general;
+		for (i, scale_line) in self.scale_lines.into_iter().enumerate() {
+			let vert_index = i * VERTICES_PER_BAR * 4;
 
 			let color = self
 				.background_color
 				.lerp(&self.value_axis_color, scale_line.intensity as f32 / 255.);
 
-			for offset in 0..6 {
+			for offset in 0..VERTICES_PER_BAR {
 				let offset = offset * 4;
 				colors[vert_index + offset] = color.r as f32 / 255.;
 				colors[vert_index + offset + 1] = color.g as f32 / 255.;
@@ -382,12 +412,12 @@ impl BarChart {
 		}
 	}
 
-	pub fn get_bar_vertex_positions(&self) -> Box<[f32]> {
-		let bar_vertex_count = self.bars.len() * 6 * 2;
-		let mut positions = vec![0.; bar_vertex_count].into_boxed_slice();
+	pub fn get_bar_vertex_positions(&mut self) -> WasmFloat32Array {
+		let positions = &mut self.vertex_positions_bars;
+		positions.set_size(self.bars.len() * VERTICES_PER_BAR * 2);
 
 		for (i, bar) in self.bars.iter().enumerate() {
-			let vert_index = i * 6 * 2;
+			let vert_index = i * VERTICES_PER_BAR * 2;
 
 			let width = (bar.width as f32 * bar.scale) as u32;
 			let left_px = bar.x as f32 - (width as f32 - bar.width as f32) / 2.;
@@ -414,15 +444,15 @@ impl BarChart {
 			positions[vert_index + 11] = top;
 		}
 
-		positions
+		positions.into()
 	}
 
-	pub fn get_relative_bar_vertex_positions(&self) -> Box<[f32]> {
-		let bar_vertex_count = self.bars.len() * 6 * 4;
-		let mut positions = vec![0.; bar_vertex_count].into_boxed_slice();
+	pub fn get_relative_bar_vertex_positions(&mut self) -> WasmFloat32Array {
+		let positions = &mut self.vertex_relative_bar_positions;
+		positions.set_size(self.bars.len() * VERTICES_PER_BAR * 4);
 
 		for (i, bar) in self.bars.iter().enumerate() {
-			let vert_index = i * 6 * 4;
+			let vert_index = i * VERTICES_PER_BAR * 4;
 
 			let bar_width = bar.width as f32;
 			let bar_height = bar.height as f32;
@@ -465,19 +495,19 @@ impl BarChart {
 			positions[vert_index + 23] = bar_height;
 		}
 
-		positions
+		positions.into()
 	}
 
-	pub fn get_bar_vertex_colors(&self) -> Box<[f32]> {
-		let bar_vertex_count = self.bars.len() * 6 * 4;
-		let mut colors = vec![0.; bar_vertex_count].into_boxed_slice();
+	pub fn get_bar_vertex_colors(&mut self) -> WasmFloat32Array {
+		let colors = &mut self.vertex_colors_bars;
+		colors.set_size(self.bars.len() * VERTICES_PER_BAR * 4);
 
 		for (i, bar) in self.bars.iter().enumerate() {
-			let vert_index = i * 6 * 4;
+			let vert_index = i * VERTICES_PER_BAR * 4;
 
 			let color = bar.color;
 
-			for offset in 0..6 {
+			for offset in 0..VERTICES_PER_BAR {
 				let offset = offset * 4;
 				colors[vert_index + offset] = color.r as f32 / 255.;
 				colors[vert_index + offset + 1] = color.g as f32 / 255.;
@@ -486,27 +516,31 @@ impl BarChart {
 			}
 		}
 
-		colors
+		colors.into()
 	}
 
-	pub fn get_general_vertex_positions(&self) -> Box<[f32]> {
+	pub fn get_general_vertex_positions(&mut self) -> WasmFloat32Array {
 		trace!("get_general_vertex_positions");
-		let scale_lines_vertex_count = self.scale_line_count * 6 * 2;
-		let mut positions = vec![0.; scale_lines_vertex_count].into_boxed_slice();
 
-		self.get_scale_line_vertex_positions(&mut positions[..scale_lines_vertex_count]);
+		self
+			.vertex_positions_general
+			.set_size(self.scale_lines.len() * VERTICES_PER_BAR * 2);
 
-		positions
+		self.get_scale_line_vertex_positions();
+
+		(&self.vertex_positions_general).into()
 	}
 
-	pub fn get_general_vertex_colors(&self) -> Box<[f32]> {
+	pub fn get_general_vertex_colors(&mut self) -> WasmFloat32Array {
 		trace!("get_general_vertex_colors");
-		let scale_lines_vertex_count = self.scale_line_count * 6 * 4;
-		let mut colors = vec![0.; scale_lines_vertex_count].into_boxed_slice();
 
-		self.get_scale_line_vertex_colors(&mut colors[..scale_lines_vertex_count]);
+		self
+			.vertex_colors_general
+			.set_size(self.scale_lines.len() * VERTICES_PER_BAR * 4);
 
-		colors
+		self.get_scale_line_vertex_colors();
+
+		(&self.vertex_colors_general).into()
 	}
 
 	pub fn get_bars_len(&self) -> usize {
@@ -534,7 +568,7 @@ impl BarChart {
 	}
 
 	pub fn get_scale_lines_count(&self) -> usize {
-		self.scale_line_count
+		self.scale_lines.len()
 	}
 
 	pub fn get_scale_line_x_at(&self, index: usize) -> u32 {
@@ -852,7 +886,9 @@ impl BarChart {
 		scale_line.intensity = 200;
 		scale_line.value = 0.0;
 
-		self.scale_line_count = usize::try_from(success_line_count).unwrap_or(usize::MAX - 1) + 1;
+		self
+			.scale_lines
+			.set_size(usize::try_from(success_line_count).unwrap_or(usize::MAX - 1) + 1);
 	}
 
 	pub fn update(
