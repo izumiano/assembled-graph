@@ -1,7 +1,7 @@
 import { logError, trace, traceWarn } from "@izumiano/vite-logger";
 import type { ClickingState } from "../graphManager";
-import type { WebGLBuffers } from "./webGLRenderer";
 import type WebGLRenderer from "./webGLRenderer";
+import type { IWebGLRenderer } from "./webGLRenderer";
 
 export interface Color {
 	r: number;
@@ -56,7 +56,7 @@ export type UnknownGraphRenderer = GraphRenderer<
 	unknown,
 	WasmGraphRendererInterop<unknown>,
 	GraphRendererOptions,
-	WebGLRenderer<WebGLBuffers, unknown>
+	WebGLRenderer
 >;
 
 export const devicePixelRatio = window.devicePixelRatio || 1;
@@ -64,7 +64,7 @@ export class GraphRenderer<
 	T,
 	WasmInterop extends WasmGraphRendererInterop<T>,
 	TOptions extends GraphRendererOptions,
-	TGLRenderer extends WebGLRenderer<WebGLBuffers, unknown>,
+	TGLRenderer extends WebGLRenderer,
 > {
 	protected canvas: HTMLCanvasElement;
 	protected ctx: WebGL2RenderingContext;
@@ -78,7 +78,7 @@ export class GraphRenderer<
 	protected imageData: ImageData;
 
 	protected wasmGraphRenderer!: WasmInterop;
-	protected glRenderer: TGLRenderer;
+	protected glRenderer: TGLRenderer & IWebGLRenderer;
 
 	public pointer: PointerType;
 
@@ -110,7 +110,7 @@ export class GraphRenderer<
 		canvas: HTMLCanvasElement,
 		width: number,
 		height: number,
-		glRenderer: TGLRenderer,
+		glRenderer: TGLRenderer & IWebGLRenderer,
 		options: TOptions,
 	) {
 		trace();

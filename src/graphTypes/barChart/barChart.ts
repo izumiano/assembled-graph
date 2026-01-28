@@ -505,20 +505,14 @@ export default class BarChart
 	public update(timestamp: number) {
 		trace();
 		this.wasmGraphRenderer.update(timestamp, this.pointer);
-		trace("after wasm update");
 
 		const vertexArr_general =
 			this.wasmGraphRenderer.getVertexPositions_general();
-		trace(1);
 		const colorsArr_general = this.wasmGraphRenderer.getVertexColors_general();
-		trace(2);
 		const vertexArr_bars = this.wasmGraphRenderer.getVertexPositions_bars();
-		trace(3);
 		const colorsArr_bars = this.wasmGraphRenderer.getVertexColors_bars();
-		trace(4);
 		const relativeBarPositions =
 			this.wasmGraphRenderer.getRelativeBarVertexPositions();
-		trace(5);
 
 		this.glRenderer.updateGeneralBuffers(vertexArr_general, colorsArr_general);
 		this.glRenderer.updateBarsBuffers(
@@ -526,8 +520,7 @@ export default class BarChart
 			colorsArr_bars,
 			relativeBarPositions,
 		);
-		this.glRenderer.cornerRadius = this.wasmGraphRenderer.getCornerRadius();
-		trace("after");
+		this.glRenderer.setCornerRadius(this.wasmGraphRenderer.getCornerRadius());
 	}
 
 	public render(timestamp: number) {
