@@ -56,7 +56,8 @@ export type UnknownGraphRenderer = GraphRenderer<
 	unknown,
 	WasmGraphRendererInterop<unknown>,
 	GraphRendererOptions,
-	WebGLRenderer
+	WebGLRenderer,
+	unknown
 >;
 
 export const devicePixelRatio = window.devicePixelRatio || 1;
@@ -65,6 +66,7 @@ export class GraphRenderer<
 	WasmInterop extends WasmGraphRendererInterop<T>,
 	TOptions extends GraphRendererOptions,
 	TGLRenderer extends WebGLRenderer,
+	TData,
 > {
 	protected canvas: HTMLCanvasElement;
 	protected ctx: WebGL2RenderingContext;
@@ -83,6 +85,8 @@ export class GraphRenderer<
 	public pointer: PointerType;
 
 	private hasInitialized = false;
+
+	private layoutNeedsUpdate = false;
 
 	private inputEventHandlers: {
 		pointerdown?: PointerEventHandler;
@@ -157,30 +161,34 @@ export class GraphRenderer<
 		this.wasmMemory = memory;
 		this.wasmGraphRenderer = wasmGraphRenderer;
 		this.glRenderer.init(memory);
+
+		this.layoutNeedsUpdate = true;
+	}
+
+	protected handleLayout() {
+		throw new Error(
+			"Everything inheriting from GraphRenderer should implement it's own handleLayout function",
+		);
+	}
+
+	public updateData(_data: TData, _timestamp: number) {
+		this.layoutNeedsUpdate = true;
+	}
+
+	protected update(_timestamp: number) {
+		if (this.layoutNeedsUpdate) {
+			this.handleLayout();
+
+			this.layoutNeedsUpdate = false;
+		}
 	}
 
 	protected render(timestamp: number) {
 		this.glRenderer.draw(timestamp);
-		// this.wasmGraphRenderer.render();
-		// const pointer = this.wasmGraphRenderer.getPixelsPtr();
-		// if (pointer + this.pixelBufferSize <= this.wasmMemory.buffer.byteLength) {
-		// 	this.pixelsArr = new Uint8ClampedArray(
-		// 		this.wasmMemory.buffer,
-		// 		pointer,
-		// 		this.pixelBufferSize,
-		// 	);
-		// 	this.imageData.data.set(this.pixelsArr);
-		// } else {
-		// 	logError("Pointer+Size was outsize the bounds of the pixel buffer", {
-		// 		pointer,
-		// 		bufferSize: this.pixelBufferSize,
-		// 		memorySize: this.wasmMemory.buffer.byteLength,
-		// 	});
-		// }
-		// this.ctx.putImageData(this.imageData, 0, 0);
 	}
 
 	public resize(width: number, height: number) {
+		trace();
 		if (width < 1 || height < 1) {
 			logError("Cannot set canvas dimensions to non-positive value", {
 				width,
@@ -197,6 +205,7 @@ export class GraphRenderer<
 		this.height = this.canvas.height;
 		this.wasmGraphRenderer.resize(this.canvas.width, this.canvas.height);
 		this.imageData = new ImageData(this.width, this.height);
+		this.layoutNeedsUpdate = true;
 	}
 
 	public getCanvas() {
@@ -214,6 +223,7 @@ export interface IGraphRenderer {
 	init(memory: WebAssembly.Memory, timestamp: number): void;
 	update(timestamp: number): void;
 	render(timestamp: number): void;
+	handleLayout(): void;
 	updateData(data: GraphData, timestamp: number): void;
 	isAnimating(): boolean;
 	onPointerDown(pointerType: string): void;

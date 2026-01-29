@@ -13,6 +13,7 @@ import {
 
 import {
 	type Color,
+	devicePixelRatio,
 	type GraphData,
 	GraphRenderer,
 	type GraphRendererOptions,
@@ -23,10 +24,10 @@ import {
 } from "../graphRenderer.js";
 import { colorToWasmColor } from "../wasmUtils.js";
 import BarChartGL from "./barChartGL.js";
+import { clamp, roundToNearestMultiple } from "../../utils.js";
 
 export interface DataPoint {
 	title: string;
-	displayTitle?: string;
 	value: number;
 }
 
@@ -54,7 +55,6 @@ interface BarOptions {
 
 export interface BarChartOptions extends GraphRendererOptions {
 	barOptions?: BarOptions;
-	titleFontSize?: number;
 	valueAxis?: ValueAxisOptions;
 }
 
@@ -82,7 +82,7 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 
 			new WasmBarChartLayout(
 				new WasmPositioning(
-					options.positioning.bottom + options.titleFontSize * devicePixelRatio,
+					options.positioning.bottom,
 					options.positioning.top,
 					options.positioning.left,
 					options.positioning.right,
@@ -115,7 +115,7 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 			),
 		);
 	}
-	updateData(data: WasmDataPoint[], timestamp: number) {
+	public updateData(data: WasmDataPoint[], timestamp: number) {
 		this.wasmGraph.update_data(data, timestamp);
 	}
 
@@ -211,7 +211,7 @@ function dataToWasmData(data: BarChartData) {
 
 function dataToInternalData(data: BarChartData) {
 	return data.map((data) => {
-		return { ...data, displayTitle: data.displayTitle ?? data.title };
+		return { ...data };
 	});
 }
 
@@ -234,9 +234,30 @@ type PointerCallback<T> =
 	| { func: T; includePositionInfo?: false }
 	| { func: Exclude<T, undefined>; includePositionInfo: true };
 
+type OnTitleLayout = (
+	args: {
+		title: string;
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+		centerPoint: number;
+	}[],
+) => void;
+type OnValueAxisLayout = (
+	args: {
+		value: number;
+		x: number;
+		y: number;
+		width: number;
+	}[],
+) => void;
+
 export interface BarChartCallbacks {
 	onSelectionChange?: PointerCallback<OnSelectionChange>;
 	onHover?: PointerCallback<OnHover>;
+	onTitleLayout?: OnTitleLayout;
+	onValueAxisLayout?: OnValueAxisLayout;
 }
 
 type InternalBarChartOptions = Required<
@@ -251,7 +272,8 @@ export default class BarChart
 		WasmBarChart,
 		WasmBarChartInterop,
 		InternalBarChartOptions,
-		BarChartGL
+		BarChartGL,
+		BarChartData
 	>
 	implements IGraphRenderer
 {
@@ -264,6 +286,9 @@ export default class BarChart
 	private onHover: OnHover;
 	private onHoverIncludePositionInfo?: boolean;
 	private hoveredBarIndex?: number;
+
+	private onTitleLayout?: OnTitleLayout;
+	private onValueAxisLayout?: OnValueAxisLayout;
 
 	constructor(
 		canvas: HTMLCanvasElement,
@@ -320,7 +345,6 @@ export default class BarChart
 				minHeight: (options.barOptions?.minHeight ?? 1) * devicePixelRatio,
 				maxBars: options.barOptions?.maxBars ?? 1000,
 			},
-			titleFontSize: options.titleFontSize ?? 10,
 			valueAxis: {
 				width: (options.valueAxis?.width ?? 0) * devicePixelRatio,
 				color: options.valueAxis?.color ?? { r: 255, g: 255, b: 255 },
@@ -349,6 +373,8 @@ export default class BarChart
 			callbacks?.onSelectionChange?.includePositionInfo;
 		this.onHover = callbacks?.onHover?.func;
 		this.onHoverIncludePositionInfo = callbacks?.onHover?.includePositionInfo;
+		this.onTitleLayout = callbacks?.onTitleLayout;
+		this.onValueAxisLayout = callbacks?.onValueAxisLayout;
 	}
 
 	public getPositionInfoForBarAt(index: number) {
@@ -359,29 +385,6 @@ export default class BarChart
 			height: this.wasmGraphRenderer.getBarHeightAt(index) / devicePixelRatio,
 		};
 	}
-
-	// private drawTitle(index: number) {
-	// 	const barX = this.wasmGraphRenderer.getBarXAt(index);
-	// 	const barWidth = this.wasmGraphRenderer.getBarWidthAt(index);
-	// 	let x = barX - this.options.barOptions.gap * 0.5;
-	// 	const diff = x - this.options.valueAxis.width;
-	// 	let width = barWidth + this.options.barOptions.gap + (diff < 0 ? diff : 0);
-	// 	x = clamp(x, { min: this.options.valueAxis.width });
-	// 	width = clamp(width, { max: this.width - x });
-	// 	const y = this.height - this.options.positioning.bottom;
-
-	// 	// fillTextWithMaxWidth(
-	// 	// 	this.ctx,
-	// 	// 	this.data[index].displayTitle,
-	// 	// 	x / devicePixelRatio,
-	// 	// 	y / devicePixelRatio,
-	// 	// 	width / devicePixelRatio,
-	// 	// 	{
-	// 	// 		horizontalAlignment: "center",
-	// 	// 		centerPoint: (barX + barWidth / 2) / devicePixelRatio,
-	// 	// 	},
-	// 	// );
-	// }
 
 	public updateData(data: BarChartData, timestamp: number) {
 		trace(data);
@@ -419,6 +422,8 @@ export default class BarChart
 		this.data = dataToInternalData(data);
 		this.wasmGraphRenderer.updateData(dataToWasmData(data), timestamp);
 		this.wasmGraphRenderer.update(timestamp, this.pointer);
+
+		super.updateData(data, timestamp);
 	}
 
 	public init(memory: WebAssembly.Memory, startTimestamp: number): void {
@@ -437,6 +442,55 @@ export default class BarChart
 		trace();
 		this.wasmGraphRenderer.wasmGraph.free();
 		this.removeInputEventHandlers();
+	}
+
+	public handleLayout() {
+		trace();
+		const scaleLinesLen = this.wasmGraphRenderer.getScaleLinesCount();
+
+		const valueAxisLayout = [];
+
+		for (let i = 0; i < scaleLinesLen; i++) {
+			valueAxisLayout.push({
+				value: roundToNearestMultiple(
+					this.wasmGraphRenderer.getScaleLineValueAt(i),
+					this.options.valueAxis.smallestScale,
+				),
+				x: 0,
+				y: this.wasmGraphRenderer.getScaleLineYAt(i) / devicePixelRatio,
+				width: this.wasmGraphRenderer.getScaleLineXAt(i) / devicePixelRatio,
+			});
+		}
+
+		this.onValueAxisLayout?.(valueAxisLayout);
+
+		//
+
+		const titleLayout = [];
+
+		const barsLen = this.wasmGraphRenderer.getBarsLen();
+		for (let i = 0; i < barsLen; i++) {
+			const barX = this.wasmGraphRenderer.getBarXAt(i);
+			const barWidth = this.wasmGraphRenderer.getBarWidthAt(i);
+			let x = barX - this.options.barOptions.gap * 0.5;
+			const diff = x - this.options.valueAxis.width;
+			let width =
+				barWidth + this.options.barOptions.gap + (diff < 0 ? diff : 0);
+			x = clamp(x, { min: this.options.valueAxis.width });
+			width = clamp(width, { max: this.width - x });
+			const y = this.height - this.options.positioning.bottom;
+
+			titleLayout.push({
+				title: this.data[i].title,
+				x: x / devicePixelRatio,
+				y: y / devicePixelRatio,
+				width: width / devicePixelRatio,
+				height: this.options.positioning.bottom,
+				centerPoint: (barX + barWidth / 2 - x) / devicePixelRatio,
+			});
+		}
+
+		this.onTitleLayout?.(titleLayout);
 	}
 
 	public onPointerDown(pointerType: string) {
@@ -521,43 +575,13 @@ export default class BarChart
 			relativeBarPositions,
 		);
 		this.glRenderer.setCornerRadius(this.wasmGraphRenderer.getCornerRadius());
+
+		super.update(timestamp);
 	}
 
 	public render(timestamp: number) {
 		trace({ width: this.width, height: this.height });
 		super.render(timestamp);
-
-		// this.ctx.font = `${this.options.titleFontSize}px Arial`;
-		// this.ctx.fillStyle = "white";
-		// const scaleLinesLen = this.wasmGraphRenderer.getScaleLinesCount();
-		// for (let i = 0; i < scaleLinesLen; i++) {
-		// 	fillTextWithMaxWidth(
-		// 		this.ctx,
-		// 		`${roundToNearestMultiple(this.wasmGraphRenderer.getScaleLineValueAt(i), this.options.valueAxis.smallestScale)}`,
-		// 		0,
-		// 		(this.wasmGraphRenderer.getScaleLineYAt(i) +
-		// 			this.options.titleFontSize / 2) /
-		// 			devicePixelRatio,
-		// 		(this.wasmGraphRenderer.getScaleLineXAt(i) - 10) / devicePixelRatio,
-		// 		{ horizontalAlignment: "right" },
-		// 	);
-
-		// 	// this.ctx.strokeStyle = "red";
-		// 	// this.ctx.strokeRect(
-		// 	// 	0,
-		// 	// 	this.wasmGraphRenderer.getScaleLineYAt(i),
-		// 	// 	this.options.valueAxis.width,
-		// 	// 	this.options.valueAxis.minPixelDistance,
-		// 	// );
-		// }
-
-		// this.ctx.font = `${this.options.titleFontSize}px Arial`;
-		// this.ctx.fillStyle = "white";
-		// const barsLen = this.wasmGraphRenderer.getBarsLen();
-
-		// for (let i = 0; i < barsLen; i++) {
-		// 	this.drawTitle(i);
-		// }
 	}
 
 	public isAnimating() {

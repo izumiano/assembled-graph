@@ -5,6 +5,10 @@ import {
 } from "../dist/index.js";
 
 const canvas = document.getElementById("graphCanvas") as HTMLCanvasElement;
+const valueAxis = document.getElementById("valueAxis") as HTMLElement;
+const titlesContainer = document.getElementById(
+	"titlesContainer",
+) as HTMLElement;
 const graphInfoElem = document.getElementById("graphInfo") as HTMLElement;
 const addBarButton = document.getElementById("addBarButton") as HTMLElement;
 const removeBarButton = document.getElementById(
@@ -15,14 +19,29 @@ function randomInt() {
 	return Math.floor(Math.random() * 100 + 0.5);
 }
 
+function measureElemNotInDocument(elem: HTMLElement) {
+	const prevVisibility = elem.style.visibility;
+	const prevPositionStyle = elem.style.position;
+
+	elem.style.visibility = "hidden";
+	elem.style.position = "absolute";
+	document.body.appendChild(elem);
+	const boundingRect = elem.getBoundingClientRect();
+	document.body.removeChild(elem);
+	elem.style.visibility = prevVisibility;
+	elem.style.position = prevPositionStyle;
+
+	return boundingRect;
+}
+
 const canvasContainer = canvas.parentElement as HTMLElement;
 
 const width = canvasContainer.clientWidth;
 const height = canvasContainer.clientHeight;
 
-const data: { title: string; displayTitle?: string; value: number }[] = [
-	{ title: "0", displayTitle: "", value: randomInt() },
-	{ title: "1", displayTitle: "", value: randomInt() },
+const data: { title: string; value: number }[] = [
+	{ title: "0", value: randomInt() },
+	{ title: "1", value: randomInt() },
 ];
 
 const graphManager = await GraphManager.create();
@@ -34,9 +53,8 @@ const graph = new BarChart(canvas, width, height, data, {
 			minWidth: 5,
 			minHeight: 7,
 			hoverScale: 1.1,
-			gap: 50,
+			gap: 20,
 		},
-		titleFontSize: 15,
 		valueAxis: {
 			width: 40,
 			minPixelDistance: 35,
@@ -44,6 +62,45 @@ const graph = new BarChart(canvas, width, height, data, {
 		positioning: { bottom: 30, top: 20, left: 10, right: 20 },
 	},
 	callbacks: {
+		onValueAxisLayout: (layout) => {
+			const elements: Node[] = [];
+			for (const item of layout) {
+				const { value, x, y, width } = item;
+
+				const elem = document.createElement("span");
+				elem.innerText = `${value}`;
+				elem.classList.add("titleItem", "rightAlign");
+				const boundingRect = measureElemNotInDocument(elem);
+				elem.style.left = `calc(${x}px - 0.5%)`;
+				elem.style.top = `${y - boundingRect.height / 2}px`;
+				elem.style.width = `${width}px`;
+
+				elements.push(elem);
+			}
+
+			valueAxis.replaceChildren(...elements);
+		},
+		onTitleLayout: (layout) => {
+			const elements: Node[] = [];
+			for (const item of layout) {
+				const { title, x, y, width, height, centerPoint } = item;
+
+				const elem = document.createElement("span");
+				elem.innerText = title;
+				elem.classList.add("titleItem");
+				const boundingRect = measureElemNotInDocument(elem);
+				const xOffset = centerPoint - boundingRect.width / 2;
+				elem.style.left = `${x + xOffset}px`;
+				elem.style.top = `${y}px`;
+
+				elem.style.width = `${width - xOffset}px`;
+				elem.style.height = `${height}px`;
+
+				elements.push(elem);
+			}
+
+			titlesContainer.replaceChildren(...elements);
+		},
 		onHover: {
 			func: (info) => {
 				if (!info) {
@@ -92,7 +149,6 @@ if (graphManager) {
 	addBarButton.onclick = () => {
 		data.push({
 			title: `${data.length}`,
-			displayTitle: "",
 			value: randomInt(),
 		});
 		graph.updateData(data, graphManager.getTimestamp());
