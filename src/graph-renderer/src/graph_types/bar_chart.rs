@@ -12,7 +12,6 @@ use crate::utils::*;
 
 #[wasm_struct]
 pub struct DataPoint {
-	title: String,
 	value: f32,
 }
 
@@ -46,7 +45,6 @@ DefineAnimation!(ClickingBarAnimData, CurrentClickingBarAnimData, color_t);
 
 #[derive(Debug)]
 struct BarData {
-	title: String,
 	x: u32,
 	y: u32,
 	width: u32,
@@ -202,7 +200,6 @@ fn handle_data(
 		}
 
 		bars.push(BarData {
-			title: data_point.title.clone(),
 			x: 0,
 			y: 0,
 			width: 0,
@@ -561,10 +558,6 @@ impl BarChart {
 
 	pub fn get_bar_height_at(&self, index: usize) -> u32 {
 		self.bars[index].height
-	}
-
-	pub fn get_bar_title_at(&self, index: usize) -> String {
-		self.bars[index].title.clone()
 	}
 
 	pub fn get_scale_lines_count(&self) -> usize {

@@ -16,8 +16,8 @@ export type OnValueAxisLayoutParams = {
 	y: number;
 	width: number;
 }[];
-export type OnTitleLayoutParams = {
-	title: string;
+export type OnTitleLayoutParams<TTitle> = {
+	title: TTitle;
 	x: number;
 	y: number;
 	width: number;

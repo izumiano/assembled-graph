@@ -18,6 +18,8 @@ import {
 	GraphRenderer,
 	type GraphRendererOptions,
 	type IGraphRenderer,
+	type OnTitleLayoutParams,
+	type OnValueAxisLayoutParams,
 	type PointerType,
 	type Positioning,
 	type WasmGraphRendererInterop,
@@ -26,13 +28,13 @@ import { colorToWasmColor } from "../wasmUtils.js";
 import BarChartGL from "./barChartGL.js";
 import { clamp, roundToNearestMultiple } from "../../utils.js";
 
-export interface DataPoint {
-	title: string;
+export interface DataPoint<TTitle> {
+	title: TTitle;
 	value: number;
 }
 
-export type BarChartData = DataPoint[] & GraphData;
-type InternalBarChartData = Required<DataPoint>[] & GraphData;
+export type BarChartData<TTitle> = DataPoint<TTitle>[] & GraphData;
+type InternalBarChartData<TTitle> = Required<DataPoint<TTitle>>[] & GraphData;
 
 type ValueAxisOptions = {
 	width?: number;
@@ -188,9 +190,6 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	getBarHeightAt(i: number) {
 		return this.wasmGraph.get_bar_height_at(i);
 	}
-	getBarTitleAt(i: number) {
-		return this.wasmGraph.get_bar_title_at(i);
-	}
 	getBarXAt(i: number) {
 		return this.wasmGraph.get_bar_x_at(i);
 	}
@@ -205,58 +204,55 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	}
 }
 
-function dataToWasmData(data: BarChartData) {
-	return data.map((item) => new WasmDataPoint(item.title, item.value));
+function dataToWasmData<TTitle>(data: BarChartData<TTitle>) {
+	return data.map((item) => new WasmDataPoint(item.value));
 }
 
-function dataToInternalData(data: BarChartData) {
+function dataToInternalData<TTitle>(data: BarChartData<TTitle>) {
 	return data.map((data) => {
 		return { ...data };
 	});
 }
 
-export type OnSelectionChangeArgs = {
-	data: DataPoint;
-	positionInfo?: { x: number; y: number; width: number; height: number } | null;
+export type OnSelectionChangeArgs<TTitle> = {
+	data: DataPoint<TTitle>;
+	positionInfo?: {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	} | null;
 	index: number;
 } | null;
-type OnSelectionChange = ((args: OnSelectionChangeArgs) => void) | undefined;
+type OnSelectionChange<TTitle> =
+	| ((args: OnSelectionChangeArgs<TTitle>) => void)
+	| undefined;
 
-export type OnHoverArgs = {
-	data: DataPoint;
-	positionInfo?: { x: number; y: number; width: number; height: number } | null;
+export type OnHoverArgs<TTitle> = {
+	data: DataPoint<TTitle>;
+	positionInfo?: {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	} | null;
 	pointer: { x: number; y: number; type: string };
 	index: number;
 } | null;
-type OnHover = ((args: OnHoverArgs) => void) | undefined;
+type OnHover<TTitle> = ((args: OnHoverArgs<TTitle>) => void) | undefined;
 
 type PointerCallback<T> =
 	| { func: T; includePositionInfo?: false }
 	| { func: Exclude<T, undefined>; includePositionInfo: true };
 
-type OnTitleLayout = (
-	args: {
-		title: string;
-		x: number;
-		y: number;
-		width: number;
-		height: number;
-		centerPoint: number;
-	}[],
-) => void;
-type OnValueAxisLayout = (
-	args: {
-		value: number;
-		x: number;
-		y: number;
-		width: number;
-	}[],
-) => void;
+type OnTitleLayout<TTitle> = (args: OnTitleLayoutParams<TTitle>) => void;
 
-export type BarChartCallbacks = {
-	onSelectionChange?: PointerCallback<OnSelectionChange>;
-	onHover?: PointerCallback<OnHover>;
-	onTitleLayout?: OnTitleLayout;
+type OnValueAxisLayout = (args: OnValueAxisLayoutParams) => void;
+
+export type BarChartCallbacks<TTitle> = {
+	onSelectionChange?: PointerCallback<OnSelectionChange<TTitle>>;
+	onHover?: PointerCallback<OnHover<TTitle>>;
+	onTitleLayout?: OnTitleLayout<TTitle>;
 	onValueAxisLayout?: OnValueAxisLayout;
 };
 
@@ -267,34 +263,34 @@ type InternalBarChartOptions = Required<
 	valueAxis: Required<ValueAxisOptions>;
 	barOptions: Required<BarOptions>;
 };
-export default class BarChart
+export default class BarChart<TTitle>
 	extends GraphRenderer<
 		WasmBarChart,
 		WasmBarChartInterop,
 		InternalBarChartOptions,
 		BarChartGL,
-		BarChartData
+		BarChartData<TTitle>
 	>
 	implements IGraphRenderer
 {
-	private data: InternalBarChartData;
+	private data: InternalBarChartData<TTitle>;
 
-	private onSelectionChange: OnSelectionChange;
+	private onSelectionChange: OnSelectionChange<TTitle>;
 	private onSelectionChangeIncludePositionInfo?: boolean;
 	private selectedBarIndex: number | undefined;
 
-	private onHover: OnHover;
+	private onHover: OnHover<TTitle>;
 	private onHoverIncludePositionInfo?: boolean;
 	private hoveredBarIndex?: number;
 
-	private onTitleLayout?: OnTitleLayout;
+	private onTitleLayout?: OnTitleLayout<TTitle>;
 	private onValueAxisLayout?: OnValueAxisLayout;
 
 	constructor(
 		canvas: HTMLCanvasElement,
 		width: number,
 		height: number,
-		data: BarChartData,
+		data: BarChartData<TTitle>,
 		{
 			options,
 			onSelectionChange,
@@ -303,7 +299,7 @@ export default class BarChart
 			onValueAxisLayout,
 		}: {
 			options?: BarChartOptions;
-		} & BarChartCallbacks,
+		} & BarChartCallbacks<TTitle>,
 	) {
 		trace();
 		options ??= {};
@@ -391,7 +387,7 @@ export default class BarChart
 		};
 	}
 
-	public updateData(data: BarChartData, timestamp: number) {
+	public updateData(data: BarChartData<TTitle>, timestamp: number) {
 		trace(data);
 		if (data === this.data) {
 			return;
@@ -467,7 +463,8 @@ export default class BarChart
 			});
 		}
 
-		this.onValueAxisLayout?.(valueAxisLayout);
+		this.options.valueAxis.width > 0 &&
+			this.onValueAxisLayout?.(valueAxisLayout);
 
 		//
 
@@ -495,7 +492,7 @@ export default class BarChart
 			});
 		}
 
-		this.onTitleLayout?.(titleLayout);
+		this.options.positioning.bottom > 0 && this.onTitleLayout?.(titleLayout);
 	}
 
 	public onPointerDown(pointerType: string) {
