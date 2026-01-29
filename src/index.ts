@@ -9,14 +9,18 @@ import {
 
 export { default as GraphManager } from "./graphManager";
 export {
-	type BarChartCallbacks,
 	type BarChartData,
 	type BarChartOptions,
-	type DataPoint,
+	type BarChartCallbacks,
+	type DataPoint as BarChart_DataPoint,
 	default as BarChart,
-	type OnHoverArgs,
-	type OnSelectionChangeArgs,
+	type OnHoverArgs as BarChart_OnHoverArgs,
+	type OnSelectionChangeArgs as BarChart_OnSelectionChangeArgs,
 } from "./graphTypes/barChart/barChart";
+export type {
+	OnValueAxisLayoutParams,
+	OnTitleLayoutParams,
+} from "./graphTypes/graphRenderer";
 export { GraphRenderer } from "./graphTypes/graphRenderer";
 
 export const __assembledGraphLogger__ = {

@@ -10,6 +10,21 @@ export interface Color {
 	a?: number;
 }
 
+export type OnValueAxisLayoutParams = {
+	value: number;
+	x: number;
+	y: number;
+	width: number;
+}[];
+export type OnTitleLayoutParams = {
+	title: string;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	centerPoint: number;
+}[];
+
 type PointerEventHandler = (e: PointerEvent) => void;
 
 export type Positioning =

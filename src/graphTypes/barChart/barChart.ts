@@ -253,12 +253,12 @@ type OnValueAxisLayout = (
 	}[],
 ) => void;
 
-export interface BarChartCallbacks {
+export type BarChartCallbacks = {
 	onSelectionChange?: PointerCallback<OnSelectionChange>;
 	onHover?: PointerCallback<OnHover>;
 	onTitleLayout?: OnTitleLayout;
 	onValueAxisLayout?: OnValueAxisLayout;
-}
+};
 
 type InternalBarChartOptions = Required<
 	Omit<BarChartOptions, "positioning" | "valueAxis" | "barOptions">
@@ -297,8 +297,13 @@ export default class BarChart
 		data: BarChartData,
 		{
 			options,
-			callbacks,
-		}: { options?: BarChartOptions; callbacks?: BarChartCallbacks },
+			onSelectionChange,
+			onHover,
+			onTitleLayout,
+			onValueAxisLayout,
+		}: {
+			options?: BarChartOptions;
+		} & BarChartCallbacks,
 	) {
 		trace();
 		options ??= {};
@@ -368,13 +373,13 @@ export default class BarChart
 		);
 
 		this.data = dataToInternalData(data);
-		this.onSelectionChange = callbacks?.onSelectionChange?.func;
+		this.onSelectionChange = onSelectionChange?.func;
 		this.onSelectionChangeIncludePositionInfo =
-			callbacks?.onSelectionChange?.includePositionInfo;
-		this.onHover = callbacks?.onHover?.func;
-		this.onHoverIncludePositionInfo = callbacks?.onHover?.includePositionInfo;
-		this.onTitleLayout = callbacks?.onTitleLayout;
-		this.onValueAxisLayout = callbacks?.onValueAxisLayout;
+			onSelectionChange?.includePositionInfo;
+		this.onHover = onHover?.func;
+		this.onHoverIncludePositionInfo = onHover?.includePositionInfo;
+		this.onTitleLayout = onTitleLayout;
+		this.onValueAxisLayout = onValueAxisLayout;
 	}
 
 	public getPositionInfoForBarAt(index: number) {

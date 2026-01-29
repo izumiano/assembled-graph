@@ -61,74 +61,72 @@ const graph = new BarChart(canvas, width, height, data, {
 		},
 		positioning: { bottom: 30, top: 20, left: 10, right: 20 },
 	},
-	callbacks: {
-		onValueAxisLayout: (layout) => {
-			const elements: Node[] = [];
-			for (const item of layout) {
-				const { value, x, y, width } = item;
+	onValueAxisLayout: (layout) => {
+		const elements: Node[] = [];
+		for (const item of layout) {
+			const { value, x, y, width } = item;
 
-				const elem = document.createElement("span");
-				elem.innerText = `${value}`;
-				elem.classList.add("titleItem", "rightAlign");
-				const boundingRect = measureElemNotInDocument(elem);
-				elem.style.left = `calc(${x}px - 0.5%)`;
-				elem.style.top = `${y - boundingRect.height / 2}px`;
-				elem.style.width = `${width}px`;
+			const elem = document.createElement("span");
+			elem.innerText = `${value}`;
+			elem.classList.add("titleItem", "rightAlign");
+			const boundingRect = measureElemNotInDocument(elem);
+			elem.style.left = `calc(${x}px - 0.5%)`;
+			elem.style.top = `${y - boundingRect.height / 2}px`;
+			elem.style.width = `${width}px`;
 
-				elements.push(elem);
+			elements.push(elem);
+		}
+
+		valueAxis.replaceChildren(...elements);
+	},
+	onTitleLayout: (layout) => {
+		const elements: Node[] = [];
+		for (const item of layout) {
+			const { title, x, y, width, height, centerPoint } = item;
+
+			const elem = document.createElement("span");
+			elem.innerText = title;
+			elem.classList.add("titleItem");
+			const boundingRect = measureElemNotInDocument(elem);
+			const xOffset = centerPoint - boundingRect.width / 2;
+			elem.style.left = `${x + xOffset}px`;
+			elem.style.top = `${y}px`;
+
+			elem.style.width = `${width - xOffset}px`;
+			elem.style.height = `${height}px`;
+
+			elements.push(elem);
+		}
+
+		titlesContainer.replaceChildren(...elements);
+	},
+	onHover: {
+		func: (info) => {
+			if (!info) {
+				graphInfoElem.classList.add("hidden");
+				return;
+			}
+			graphInfoElem.classList.remove("hidden");
+
+			const { data, pointer } = info;
+
+			graphInfoElem.innerText = `${data.title}: ${data.value}`;
+
+			const rect = graphInfoElem.getBoundingClientRect();
+
+			let left = pointer.x;
+
+			if (left + rect.width > canvasContainer.clientWidth) {
+				left = canvasContainer.clientWidth - rect.width;
 			}
 
-			valueAxis.replaceChildren(...elements);
-		},
-		onTitleLayout: (layout) => {
-			const elements: Node[] = [];
-			for (const item of layout) {
-				const { title, x, y, width, height, centerPoint } = item;
-
-				const elem = document.createElement("span");
-				elem.innerText = title;
-				elem.classList.add("titleItem");
-				const boundingRect = measureElemNotInDocument(elem);
-				const xOffset = centerPoint - boundingRect.width / 2;
-				elem.style.left = `${x + xOffset}px`;
-				elem.style.top = `${y}px`;
-
-				elem.style.width = `${width - xOffset}px`;
-				elem.style.height = `${height}px`;
-
-				elements.push(elem);
+			let top = pointer.y - rect.height * (pointer.type === "touch" ? 2 : 1);
+			if (top + canvasContainer.offsetTop < 0) {
+				top = -canvasContainer.offsetTop;
 			}
 
-			titlesContainer.replaceChildren(...elements);
-		},
-		onHover: {
-			func: (info) => {
-				if (!info) {
-					graphInfoElem.classList.add("hidden");
-					return;
-				}
-				graphInfoElem.classList.remove("hidden");
-
-				const { data, pointer } = info;
-
-				graphInfoElem.innerText = `${data.title}: ${data.value}`;
-
-				const rect = graphInfoElem.getBoundingClientRect();
-
-				let left = pointer.x;
-
-				if (left + rect.width > canvasContainer.clientWidth) {
-					left = canvasContainer.clientWidth - rect.width;
-				}
-
-				let top = pointer.y - rect.height * (pointer.type === "touch" ? 2 : 1);
-				if (top + canvasContainer.offsetTop < 0) {
-					top = -canvasContainer.offsetTop;
-				}
-
-				graphInfoElem.style.left = `${left}px`;
-				graphInfoElem.style.top = `${top}px`;
-			},
+			graphInfoElem.style.left = `${left}px`;
+			graphInfoElem.style.top = `${top}px`;
 		},
 	},
 });
