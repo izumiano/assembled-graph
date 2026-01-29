@@ -1,5 +1,7 @@
 import { logError, trace, traceWarn } from "@izumiano/vite-logger";
 import type { ClickingState } from "../graphManager";
+import type WebGLRenderer from "./webGLRenderer";
+import type { IWebGLRenderer } from "./webGLRenderer";
 
 export interface Color {
 	r: number;
@@ -7,6 +9,21 @@ export interface Color {
 	b: number;
 	a?: number;
 }
+
+export type OnValueAxisLayoutParams = {
+	value: number;
+	x: number;
+	y: number;
+	width: number;
+}[];
+export type OnTitleLayoutParams<TTitle> = {
+	title: TTitle;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	centerPoint: number;
+}[];
 
 type PointerEventHandler = (e: PointerEvent) => void;
 
@@ -34,7 +51,6 @@ export interface WasmGraphRendererInterop<TGraph> {
 		pointer: PointerType,
 		clickingState: ClickingState,
 	): void;
-	render(): void;
 	updateData(data: GraphData, timestamp: number): void;
 	getIsAnimating(): boolean;
 }
@@ -51,14 +67,24 @@ type InputEventType = {
 	canvas: HTMLCanvasElement;
 };
 
+export type UnknownGraphRenderer = GraphRenderer<
+	unknown,
+	WasmGraphRendererInterop<unknown>,
+	GraphRendererOptions,
+	WebGLRenderer,
+	unknown
+>;
+
 export const devicePixelRatio = window.devicePixelRatio || 1;
 export class GraphRenderer<
 	T,
 	WasmInterop extends WasmGraphRendererInterop<T>,
 	TOptions extends GraphRendererOptions,
+	TGLRenderer extends WebGLRenderer,
+	TData,
 > {
 	protected canvas: HTMLCanvasElement;
-	protected ctx: CanvasRenderingContext2D;
+	protected ctx: WebGL2RenderingContext;
 	protected width: number;
 	protected height: number;
 
@@ -69,12 +95,13 @@ export class GraphRenderer<
 	protected imageData: ImageData;
 
 	protected wasmGraphRenderer!: WasmInterop;
+	protected glRenderer: TGLRenderer & IWebGLRenderer;
 
 	public pointer: PointerType;
 
 	private hasInitialized = false;
 
-	private pixelBufferSize = 0;
+	private layoutNeedsUpdate = false;
 
 	private inputEventHandlers: {
 		pointerdown?: PointerEventHandler;
@@ -102,14 +129,10 @@ export class GraphRenderer<
 		canvas: HTMLCanvasElement,
 		width: number,
 		height: number,
+		glRenderer: TGLRenderer & IWebGLRenderer,
 		options: TOptions,
 	) {
-		const ctx = canvas.getContext("2d");
-
-		if (!ctx) {
-			throw new Error("Failed getting canvas rendering context");
-		}
-
+		trace();
 		if (width < 1) {
 			traceWarn("width has to be >=1");
 			width = 1;
@@ -121,11 +144,15 @@ export class GraphRenderer<
 
 		canvas.style.width = `${width}px`;
 		canvas.style.height = `${height}px`;
-		canvas.width = width * devicePixelRatio;
-		canvas.height = height * devicePixelRatio;
-		ctx.scale(devicePixelRatio, devicePixelRatio);
+		canvas.width = Math.floor(width * devicePixelRatio);
+		canvas.height = Math.floor(height * devicePixelRatio);
+
+		const gl = glRenderer.gl;
+		gl.viewport(0, 0, canvas.width, canvas.height);
+
 		this.canvas = canvas;
-		this.ctx = ctx;
+		this.glRenderer = glRenderer;
+		this.ctx = gl;
 		this.width = canvas.width;
 		this.height = canvas.height;
 		trace({
@@ -135,7 +162,6 @@ export class GraphRenderer<
 			this_width: this.width,
 			this_height: this.height,
 		});
-		this.pixelBufferSize = this.width * this.height * 4;
 		this.imageData = new ImageData(this.width, this.height);
 		this.pointer = { x: -1, y: -1, clickingState: "None" };
 		this.options = options;
@@ -149,47 +175,52 @@ export class GraphRenderer<
 		this.hasInitialized = true;
 		this.wasmMemory = memory;
 		this.wasmGraphRenderer = wasmGraphRenderer;
+		this.glRenderer.init(memory);
+
+		this.layoutNeedsUpdate = true;
 	}
 
-	protected render() {
-		this.wasmGraphRenderer.render();
+	protected handleLayout() {
+		throw new Error(
+			"Everything inheriting from GraphRenderer should implement it's own handleLayout function",
+		);
+	}
 
-		const pointer = this.wasmGraphRenderer.getPixelsPtr();
-		if (pointer + this.pixelBufferSize <= this.wasmMemory.buffer.byteLength) {
-			this.pixelsArr = new Uint8ClampedArray(
-				this.wasmMemory.buffer,
-				pointer,
-				this.pixelBufferSize,
-			);
-			this.imageData.data.set(this.pixelsArr);
-		} else {
-			logError("Pointer+Size was outsize the bounds of the pixel buffer", {
-				pointer,
-				bufferSize: this.pixelBufferSize,
-				memorySize: this.wasmMemory.buffer.byteLength,
-			});
+	public updateData(_data: TData, _timestamp: number) {
+		this.layoutNeedsUpdate = true;
+	}
+
+	protected update(_timestamp: number) {
+		if (this.layoutNeedsUpdate) {
+			this.handleLayout();
+
+			this.layoutNeedsUpdate = false;
 		}
-		this.ctx.putImageData(this.imageData, 0, 0);
+	}
+
+	protected render(timestamp: number) {
+		this.glRenderer.draw(timestamp);
 	}
 
 	public resize(width: number, height: number) {
-		if (width <= 0 || height <= 0) {
+		trace();
+		if (width < 1 || height < 1) {
 			logError("Cannot set canvas dimensions to non-positive value", {
 				width,
 				height,
 			});
 			return;
 		}
-		this.canvas.width = width * devicePixelRatio;
-		this.canvas.height = height * devicePixelRatio;
+		this.canvas.width = Math.floor(width * devicePixelRatio);
+		this.canvas.height = Math.floor(height * devicePixelRatio);
+		this.ctx.viewport(0, 0, this.canvas.width, this.canvas.height);
 		this.canvas.style.width = `${width}px`;
 		this.canvas.style.height = `${height}px`;
-		this.ctx.scale(devicePixelRatio, devicePixelRatio);
 		this.width = this.canvas.width;
 		this.height = this.canvas.height;
-		this.pixelBufferSize = this.width * this.height * 4;
 		this.wasmGraphRenderer.resize(this.canvas.width, this.canvas.height);
 		this.imageData = new ImageData(this.width, this.height);
+		this.layoutNeedsUpdate = true;
 	}
 
 	public getCanvas() {
@@ -206,7 +237,8 @@ export type GraphData = object;
 export interface IGraphRenderer {
 	init(memory: WebAssembly.Memory, timestamp: number): void;
 	update(timestamp: number): void;
-	render(): void;
+	render(timestamp: number): void;
+	handleLayout(): void;
 	updateData(data: GraphData, timestamp: number): void;
 	isAnimating(): boolean;
 	onPointerDown(pointerType: string): void;

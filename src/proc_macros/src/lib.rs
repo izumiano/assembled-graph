@@ -52,6 +52,7 @@ pub fn wasm_struct(_attr: TokenStream, input: TokenStream) -> TokenStream {
 
 	let expanded = quote! {
 		#[wasm_bindgen]
+		#[derive(Debug, Clone)]
 		pub struct #struct_name{
 			#(#struc)*
 		}

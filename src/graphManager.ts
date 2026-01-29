@@ -1,10 +1,8 @@
 import { trace, logWarn } from "@izumiano/vite-logger";
 import init, { type InitOutput } from "./graph-renderer/pkg/graph_renderer.js";
 import type {
-	GraphRenderer,
-	GraphRendererOptions,
 	IGraphRenderer,
-	WasmGraphRendererInterop,
+	UnknownGraphRenderer,
 } from "./graphTypes/graphRenderer.js";
 import { sleepFor } from "./utils.js";
 
@@ -12,14 +10,7 @@ export type ClickingState = "None" | "Holding" | "JustReleased";
 
 export default class GraphManager {
 	private initOutput: InitOutput;
-	private renderers: Set<
-		IGraphRenderer &
-			GraphRenderer<
-				unknown,
-				WasmGraphRendererInterop<unknown>,
-				GraphRendererOptions
-			>
-	> = new Set();
+	private renderers: Set<IGraphRenderer & UnknownGraphRenderer> = new Set();
 	private timestamp!: number;
 
 	private pointerStart: {
@@ -75,7 +66,7 @@ export default class GraphManager {
 				return;
 			}
 			renderer.update(timestamp);
-			renderer.render();
+			renderer.render(timestamp);
 		});
 
 		this.timestamp = timestamp;
@@ -89,18 +80,13 @@ export default class GraphManager {
 		return this.timestamp ?? 0;
 	}
 
-	public addGraph<
-		TGraphRenderer extends GraphRenderer<
-			unknown,
-			WasmGraphRendererInterop<unknown>,
-			GraphRendererOptions
-		> &
-			IGraphRenderer,
-	>(renderer: TGraphRenderer) {
+	public addGraph<TGraphRenderer extends UnknownGraphRenderer & IGraphRenderer>(
+		renderer: TGraphRenderer,
+	) {
 		trace();
 		renderer.init(this.initOutput.memory, this.timestamp);
 		renderer.update(this.timestamp);
-		renderer.render();
+		renderer.render(this.timestamp);
 
 		const canvas = renderer.getCanvas();
 		this.addInputHandling(canvas, renderer);
@@ -111,12 +97,7 @@ export default class GraphManager {
 	}
 
 	public removeGraph<
-		TGraphRenderer extends GraphRenderer<
-			unknown,
-			WasmGraphRendererInterop<unknown>,
-			GraphRendererOptions
-		> &
-			IGraphRenderer,
+		TGraphRenderer extends UnknownGraphRenderer & IGraphRenderer,
 	>(renderer: TGraphRenderer) {
 		trace();
 		renderer.dispose();
@@ -127,12 +108,7 @@ export default class GraphManager {
 	private handleClick(
 		e: PointerEvent,
 		canvas: HTMLCanvasElement,
-		renderer: IGraphRenderer &
-			GraphRenderer<
-				unknown,
-				WasmGraphRendererInterop<unknown>,
-				GraphRendererOptions
-			>,
+		renderer: IGraphRenderer & UnknownGraphRenderer,
 		touchId?: number,
 	) {
 		const rect = canvas.getBoundingClientRect();
@@ -151,12 +127,7 @@ export default class GraphManager {
 	private handleMoveInput(
 		e: PointerEvent,
 		canvas: HTMLCanvasElement,
-		renderer: IGraphRenderer &
-			GraphRenderer<
-				unknown,
-				WasmGraphRendererInterop<unknown>,
-				GraphRendererOptions
-			>,
+		renderer: IGraphRenderer & UnknownGraphRenderer,
 	) {
 		const rect = canvas.getBoundingClientRect();
 		const mouseX = e.clientX - rect.left;
@@ -171,28 +142,14 @@ export default class GraphManager {
 		renderer.onPointerMove(e.pointerType);
 	}
 
-	private handleEndInput(
-		renderer: IGraphRenderer &
-			GraphRenderer<
-				unknown,
-				WasmGraphRendererInterop<unknown>,
-				GraphRendererOptions
-			>,
-	) {
+	private handleEndInput(renderer: IGraphRenderer & UnknownGraphRenderer) {
 		renderer.pointer.clickingState = "JustReleased";
 		renderer.update(this.timestamp);
 		renderer.pointer.clickingState = "None";
 		this.pointerStart = null;
 	}
 
-	private handleCancelInput(
-		renderer: IGraphRenderer &
-			GraphRenderer<
-				unknown,
-				WasmGraphRendererInterop<unknown>,
-				GraphRendererOptions
-			>,
-	) {
+	private handleCancelInput(renderer: IGraphRenderer & UnknownGraphRenderer) {
 		renderer.pointer = { x: -1, y: -1, clickingState: "None" };
 		renderer.update(this.timestamp);
 		renderer.onPointerLeave();
@@ -200,12 +157,7 @@ export default class GraphManager {
 
 	private addInputHandling(
 		canvas: HTMLCanvasElement,
-		renderer: IGraphRenderer &
-			GraphRenderer<
-				unknown,
-				WasmGraphRendererInterop<unknown>,
-				GraphRendererOptions
-			>,
+		renderer: IGraphRenderer & UnknownGraphRenderer,
 	) {
 		renderer.addInputEventHandler({
 			type: "pointerdown",

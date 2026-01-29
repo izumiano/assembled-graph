@@ -6,18 +6,16 @@ use wasm_bindgen::prelude::*;
 use crate::DefineAnimation;
 use crate::animation::*;
 use crate::graph_types::utils::*;
-use crate::log_verbose;
-use crate::log_verbose_priority;
+use crate::log_warn;
+use crate::trace;
 use crate::utils::*;
 
-#[derive(Debug)]
 #[wasm_struct]
 pub struct DataPoint {
-	title: String,
 	value: f32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum PointerState {
 	None,
 	Hover,
@@ -47,8 +45,6 @@ DefineAnimation!(ClickingBarAnimData, CurrentClickingBarAnimData, color_t);
 
 #[derive(Debug)]
 struct BarData {
-	title: String,
-	// _value: f32,
 	x: u32,
 	y: u32,
 	width: u32,
@@ -65,6 +61,7 @@ struct BarData {
 	clicking_bar_anim: ClickingBarAnimData,
 }
 
+#[derive(Debug, Clone, Copy)]
 struct ScaleLineObject {
 	x: u32,
 	y: u32,
@@ -111,6 +108,7 @@ pub struct BarOptions {
 	hover_color: Color,
 	selected_color: Color,
 	hover_scale: f32,
+	max_bars: usize,
 }
 
 #[wasm_struct]
@@ -128,6 +126,8 @@ pub enum ClickingState {
 	JustReleased,
 }
 
+const VERTICES_PER_BAR: usize = 6;
+
 #[wasm_bindgen]
 pub struct BarChart {
 	data: Vec<DataPoint>,
@@ -138,8 +138,7 @@ pub struct BarChart {
 	background_color: Color,
 
 	bars: Vec<BarData>,
-	scale_lines: Vec<ScaleLineObject>,
-	scale_line_count: u32,
+	scale_lines: PreAllocatedCollection<ScaleLineObject>,
 
 	bar_color: Color,
 	bar_hover_color: Color,
@@ -170,6 +169,13 @@ pub struct BarChart {
 	hovered_bar_index: Option<usize>,
 
 	updated_data: bool,
+
+	vertex_positions_general: PreAllocatedCollection<f32>,
+	vertex_colors_general: PreAllocatedCollection<f32>,
+
+	vertex_positions_bars: PreAllocatedCollection<f32>,
+	vertex_colors_bars: PreAllocatedCollection<f32>,
+	vertex_relative_bar_positions: PreAllocatedCollection<f32>,
 }
 
 fn handle_data(
@@ -194,7 +200,6 @@ fn handle_data(
 		}
 
 		bars.push(BarData {
-			title: data_point.title.clone(),
 			x: 0,
 			y: 0,
 			width: 0,
@@ -242,19 +247,20 @@ impl BarChart {
 		let size = width * height * 4;
 		let pixels = vec![0; size as usize];
 
-		let mut scale_lines: Vec<ScaleLineObject> = Vec::with_capacity(100);
-		let scale_line_count = 0;
+		let max_scale_lines = 100;
 
-		for _ in 0..100 {
-			scale_lines.push(ScaleLineObject {
+		let scale_lines = PreAllocatedCollection::new(
+			ScaleLineObject {
 				x: 0,
 				y: 0,
 				width: 0,
 				height: 0,
 				intensity: 0,
 				value: 0.0,
-			});
-		}
+			},
+			0,
+			max_scale_lines,
+		);
 
 		let (data, bars, max_val) = handle_data(
 			data,
@@ -262,6 +268,18 @@ impl BarChart {
 			height - layout.positioning.bottom - layout.positioning.top,
 			start_timestamp,
 		);
+
+		let max_bars = options.bar_options.max_bars;
+
+		let vertex_positions_general =
+			PreAllocatedCollection::new(0., 0, max_scale_lines * VERTICES_PER_BAR * 2);
+		let vertex_colors_general =
+			PreAllocatedCollection::new(0., 0, max_scale_lines * VERTICES_PER_BAR * 4);
+
+		let vertex_positions_bars = PreAllocatedCollection::new(0., 0, max_bars * VERTICES_PER_BAR * 2);
+		let vertex_colors_bars = PreAllocatedCollection::new(0., 0, max_bars * VERTICES_PER_BAR * 4);
+		let vertex_relative_bar_positions =
+			PreAllocatedCollection::new(0., 0, max_bars * VERTICES_PER_BAR * 4);
 
 		BarChart {
 			data,
@@ -272,7 +290,6 @@ impl BarChart {
 			background_color: options.background_color,
 			bars,
 			scale_lines,
-			scale_line_count,
 			bottom: layout.positioning.bottom,
 			top: layout.positioning.top,
 			left: layout.positioning.left,
@@ -294,6 +311,13 @@ impl BarChart {
 			bar_selected_color: options.bar_options.selected_color,
 			value_axis_color: options.value_axis_color,
 			updated_data: false,
+
+			vertex_positions_general,
+			vertex_colors_general,
+
+			vertex_positions_bars,
+			vertex_colors_bars,
+			vertex_relative_bar_positions,
 		}
 	}
 
@@ -317,7 +341,7 @@ impl BarChart {
 	}
 
 	pub fn update_data(&mut self, data: Vec<DataPoint>, timestamp: f64) {
-		log_verbose_priority!(format!(
+		trace!(format!(
 			"Updating data from {:#?} to {:#?}",
 			self.data, data
 		));
@@ -332,6 +356,188 @@ impl BarChart {
 		self.max_val = max_val;
 		self.start_timestamp = timestamp;
 		self.updated_data = true;
+	}
+
+	fn get_scale_line_vertex_positions(&mut self) {
+		let positions = &mut self.vertex_positions_general;
+		trace!(positions.len());
+		for (i, scale_line) in self.scale_lines.into_iter().enumerate() {
+			let vert_index = i * VERTICES_PER_BAR * 2;
+
+			let left = scale_line.x;
+			let right = left + scale_line.width;
+			let top = scale_line.y;
+			let bottom = top + scale_line.height;
+
+			let left = (left as f32 / self.width as f32) * 2. - 1.;
+			let right = (right as f32 / self.width as f32) * 2. - 1.;
+			let top = -((top as f32 / self.height as f32) * 2. - 1.);
+			let bottom = -((bottom as f32 / self.height as f32) * 2. - 1.);
+
+			positions[vert_index] = left;
+			positions[vert_index + 1] = bottom;
+			positions[vert_index + 2] = left;
+			positions[vert_index + 3] = top;
+			positions[vert_index + 4] = right;
+			positions[vert_index + 5] = top;
+
+			positions[vert_index + 6] = right;
+			positions[vert_index + 7] = bottom;
+			positions[vert_index + 8] = left;
+			positions[vert_index + 9] = bottom;
+			positions[vert_index + 10] = right;
+			positions[vert_index + 11] = top;
+		}
+	}
+
+	fn get_scale_line_vertex_colors(&mut self) {
+		let colors = &mut self.vertex_colors_general;
+		for (i, scale_line) in self.scale_lines.into_iter().enumerate() {
+			let vert_index = i * VERTICES_PER_BAR * 4;
+
+			let color = self
+				.background_color
+				.lerp(&self.value_axis_color, scale_line.intensity as f32 / 255.);
+
+			for offset in 0..VERTICES_PER_BAR {
+				let offset = offset * 4;
+				colors[vert_index + offset] = color.r as f32 / 255.;
+				colors[vert_index + offset + 1] = color.g as f32 / 255.;
+				colors[vert_index + offset + 2] = color.b as f32 / 255.;
+				colors[vert_index + offset + 3] = color.a as f32 / 255.;
+			}
+		}
+	}
+
+	pub fn get_bar_vertex_positions(&mut self) -> WasmFloat32Array {
+		let positions = &mut self.vertex_positions_bars;
+		positions.set_size(self.bars.len() * VERTICES_PER_BAR * 2);
+
+		for (i, bar) in self.bars.iter().enumerate() {
+			let vert_index = i * VERTICES_PER_BAR * 2;
+
+			let width = (bar.width as f32 * bar.scale) as u32;
+			let left_px = bar.x as f32 - (width as f32 - bar.width as f32) / 2.;
+
+			// Convert pixel positions to (-1 to 1) scale
+			let left = (left_px / self.width as f32) * 2. - 1.;
+			let right = ((left_px + width as f32) / self.width as f32) * 2. - 1.;
+			let bottom = -(((bar.y as f32 + bar.height as f32) / self.height as f32) * 2. - 1.);
+			let top = -((bar.y as f32 / self.height as f32) * 2. - 1.);
+
+			// Every two indices is an x and a y position. Two triangles per loop.
+			positions[vert_index] = left;
+			positions[vert_index + 1] = bottom;
+			positions[vert_index + 2] = left;
+			positions[vert_index + 3] = top;
+			positions[vert_index + 4] = right;
+			positions[vert_index + 5] = top;
+
+			positions[vert_index + 6] = right;
+			positions[vert_index + 7] = bottom;
+			positions[vert_index + 8] = left;
+			positions[vert_index + 9] = bottom;
+			positions[vert_index + 10] = right;
+			positions[vert_index + 11] = top;
+		}
+
+		positions.into()
+	}
+
+	pub fn get_relative_bar_vertex_positions(&mut self) -> WasmFloat32Array {
+		let positions = &mut self.vertex_relative_bar_positions;
+		positions.set_size(self.bars.len() * VERTICES_PER_BAR * 4);
+
+		for (i, bar) in self.bars.iter().enumerate() {
+			let vert_index = i * VERTICES_PER_BAR * 4;
+
+			let bar_width = bar.width as f32;
+			let bar_height = bar.height as f32;
+
+			/*
+			0: relative width of nth vertex
+			1: relative height of nth vertex
+			2: pixel width of bar
+			3: pixel height of bar
+			4: ...
+			*/
+			positions[vert_index] = 0.;
+			positions[vert_index + 1] = 0.;
+			positions[vert_index + 2] = bar_width;
+			positions[vert_index + 3] = bar_height;
+
+			positions[vert_index + 4] = 0.;
+			positions[vert_index + 5] = 1.;
+			positions[vert_index + 6] = bar_width;
+			positions[vert_index + 7] = bar_height;
+
+			positions[vert_index + 8] = 1.;
+			positions[vert_index + 9] = 1.;
+			positions[vert_index + 10] = bar_width;
+			positions[vert_index + 11] = bar_height;
+
+			positions[vert_index + 12] = 1.;
+			positions[vert_index + 13] = 0.;
+			positions[vert_index + 14] = bar_width;
+			positions[vert_index + 15] = bar_height;
+
+			positions[vert_index + 16] = 0.;
+			positions[vert_index + 17] = 0.;
+			positions[vert_index + 18] = bar_width;
+			positions[vert_index + 19] = bar_height;
+
+			positions[vert_index + 20] = 1.;
+			positions[vert_index + 21] = 1.;
+			positions[vert_index + 22] = bar_width;
+			positions[vert_index + 23] = bar_height;
+		}
+
+		positions.into()
+	}
+
+	pub fn get_bar_vertex_colors(&mut self) -> WasmFloat32Array {
+		let colors = &mut self.vertex_colors_bars;
+		colors.set_size(self.bars.len() * VERTICES_PER_BAR * 4);
+
+		for (i, bar) in self.bars.iter().enumerate() {
+			let vert_index = i * VERTICES_PER_BAR * 4;
+
+			let color = bar.color;
+
+			for offset in 0..VERTICES_PER_BAR {
+				let offset = offset * 4;
+				colors[vert_index + offset] = color.r as f32 / 255.;
+				colors[vert_index + offset + 1] = color.g as f32 / 255.;
+				colors[vert_index + offset + 2] = color.b as f32 / 255.;
+				colors[vert_index + offset + 3] = color.a as f32 / 255.;
+			}
+		}
+
+		colors.into()
+	}
+
+	pub fn get_general_vertex_positions(&mut self) -> WasmFloat32Array {
+		trace!("get_general_vertex_positions");
+
+		self
+			.vertex_positions_general
+			.set_size(self.scale_lines.len() * VERTICES_PER_BAR * 2);
+
+		self.get_scale_line_vertex_positions();
+
+		(&self.vertex_positions_general).into()
+	}
+
+	pub fn get_general_vertex_colors(&mut self) -> WasmFloat32Array {
+		trace!("get_general_vertex_colors");
+
+		self
+			.vertex_colors_general
+			.set_size(self.scale_lines.len() * VERTICES_PER_BAR * 4);
+
+		self.get_scale_line_vertex_colors();
+
+		(&self.vertex_colors_general).into()
 	}
 
 	pub fn get_bars_len(&self) -> usize {
@@ -354,12 +560,8 @@ impl BarChart {
 		self.bars[index].height
 	}
 
-	pub fn get_bar_title_at(&self, index: usize) -> String {
-		self.bars[index].title.clone()
-	}
-
-	pub fn get_scale_lines_count(&self) -> u32 {
-		self.scale_line_count
+	pub fn get_scale_lines_count(&self) -> usize {
+		self.scale_lines.len()
 	}
 
 	pub fn get_scale_line_x_at(&self, index: usize) -> u32 {
@@ -386,51 +588,12 @@ impl BarChart {
 		self.hovered_bar_index
 	}
 
-	fn draw_bars(&mut self) {
-		for i in 0..self.bars.len() {
-			let bar = &self.bars[i];
-			let corner_radius = min(self.bar_corner_radius, bar.width / 2);
-			let color = bar.color;
-			let width = (bar.width as f32 * bar.scale) as u32;
-			let left = (bar.x as i32 - (width as i32 - bar.width as i32) / 2).to_u32();
-			let bar_y = bar.y;
-			let bar_height = bar.height;
-
-			self.draw_rect(
-				left,
-				bar_y + corner_radius,
-				width,
-				(bar_height as i32 - corner_radius as i32).to_u32(),
-				&color,
-			);
-
-			self.draw_rect(
-				left + corner_radius,
-				bar_y,
-				(width as i32 - corner_radius as i32 * 2).to_u32(),
-				min(corner_radius, bar_height),
-				&color,
-			);
-
-			draw_circle_direct(
-				&mut self.pixels,
-				self.width,
-				(self.height as i32 - self.bottom as i32).to_u32(),
-				left + corner_radius,
-				bar_y + corner_radius,
-				corner_radius,
-				&color,
-			);
-
-			draw_circle_direct(
-				&mut self.pixels,
-				self.width,
-				(self.height as i32 - self.bottom as i32).to_u32(),
-				((left + width) as i32 - corner_radius as i32).to_u32(),
-				bar_y + corner_radius,
-				corner_radius,
-				&color,
-			);
+	pub fn get_corner_radius(&self) -> u32 {
+		let first_bar = self.bars.first();
+		if let Some(first_bar) = first_bar {
+			min(self.bar_corner_radius, first_bar.width / 2)
+		} else {
+			0
 		}
 	}
 
@@ -440,11 +603,11 @@ impl BarChart {
 
 			if selected {
 				if let SelectedState::Selected { timestamp: _ } = self.bars[i].selected_state {
-					log_verbose_priority!("Deselect bar", i);
+					trace!("Deselect bar", i);
 					self.bars[i].selected_state = SelectedState::None { timestamp };
 					self.selected_bar_index = None;
 				} else {
-					log_verbose_priority!("Select bar", i);
+					trace!("Select bar", i);
 					self.bars[i].selected_state = SelectedState::Selected { timestamp };
 					self.selected_bar_index = Some(index);
 				}
@@ -463,7 +626,7 @@ impl BarChart {
 			);
 
 			if selected {
-				log_verbose_priority!("Deselect bar", i);
+				trace!("Deselect bar", i);
 				self.bars[i].selected_state = SelectedState::None { timestamp };
 			}
 		}
@@ -477,6 +640,7 @@ impl BarChart {
 		pointer_y: Option<u32>,
 		clicking_state: ClickingState,
 	) {
+		trace!("calculate_bars");
 		let bars_count = self.data.len();
 
 		let mut left = self.left + self.value_axis_width;
@@ -646,22 +810,8 @@ impl BarChart {
 		self.is_animating = !all_animations_done;
 	}
 
-	fn draw_scale_lines(&mut self) {
-		for i in 0..self.scale_line_count {
-			let scale_line = &self.scale_lines[i as usize];
-			let mut color = self.value_axis_color;
-			color.a = scale_line.intensity;
-			self.draw_rect_alpha(
-				scale_line.x,
-				scale_line.y,
-				scale_line.width,
-				scale_line.height,
-				&color,
-			);
-		}
-	}
-
 	fn calculate_scale_lines(&mut self) {
+		trace!("calculate_scale_lines");
 		let thickness = 2;
 		let x_offset = self.value_axis_width;
 
@@ -676,6 +826,11 @@ impl BarChart {
 		if pixel_distance < min_pixel_dist {
 			mult = (min_pixel_dist / pixel_distance).ceil_nearest_power_2() as i64;
 			pixel_distance *= mult as f32;
+		}
+
+		if pixel_distance < 1. {
+			log_warn!("pixel_distance < 1");
+			return;
 		}
 
 		let line_count = (height / pixel_distance).to_u32() + 1;
@@ -724,7 +879,9 @@ impl BarChart {
 		scale_line.intensity = 200;
 		scale_line.value = 0.0;
 
-		self.scale_line_count = success_line_count + 1;
+		self
+			.scale_lines
+			.set_size(usize::try_from(success_line_count).unwrap_or(usize::MAX - 1) + 1);
 	}
 
 	pub fn update(
@@ -734,7 +891,7 @@ impl BarChart {
 		pointer_y: Option<u32>,
 		clicking_state: ClickingState,
 	) {
-		log_verbose!("update");
+		trace!("update");
 
 		self.calculate_scale_lines();
 		self.calculate_bars(timestamp, pointer_x, pointer_y, clicking_state);
@@ -743,41 +900,5 @@ impl BarChart {
 			self.is_animating = true;
 			self.updated_data = false;
 		}
-	}
-
-	pub fn render(&mut self) {
-		log_verbose!("render");
-
-		clear_background(
-			&mut self.pixels,
-			self.width,
-			self.height,
-			&self.background_color,
-		);
-
-		self.draw_scale_lines();
-
-		self.draw_bars();
-	}
-}
-
-impl GraphRenderer for BarChart {
-	fn get_mut_pixels(&mut self) -> &mut Vec<u8> {
-		&mut self.pixels
-	}
-	fn get_width(&self) -> u32 {
-		self.width
-	}
-	fn get_height(&self) -> u32 {
-		self.height
-	}
-	fn draw_rect(&mut self, x: u32, y: u32, width: u32, height: u32, color: &Color) {
-		draw_rect(self, x, y, width, height, color);
-	}
-	fn draw_rect_alpha(&mut self, x: u32, y: u32, width: u32, height: u32, color: &Color) {
-		draw_rect_alpha(self, x, y, width, height, color);
-	}
-	fn draw_circle(&mut self, x: u32, y: u32, radius: u32, color: &Color) {
-		draw_circle(self, x, y, radius, color);
 	}
 }

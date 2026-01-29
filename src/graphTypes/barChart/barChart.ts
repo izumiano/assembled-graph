@@ -1,4 +1,4 @@
-import { trace } from "@izumiano/vite-logger";
+import { logWarn, trace } from "@izumiano/vite-logger";
 import {
 	BarChart as WasmBarChart,
 	BarChartLayout as WasmBarChartLayout,
@@ -9,33 +9,32 @@ import {
 	DataPoint as WasmDataPoint,
 	Positioning as WasmPositioning,
 	ValueAxisLayout as WasmValueAxisLayout,
-} from "../graph-renderer/pkg/graph_renderer.js";
-import {
-	clamp,
-	fillTextWithMaxWidth,
-	roundToNearestMultiple,
-} from "../utils.js";
+} from "../../graph-renderer/pkg/graph_renderer.js";
 
 import {
 	type Color,
+	devicePixelRatio,
 	type GraphData,
 	GraphRenderer,
 	type GraphRendererOptions,
 	type IGraphRenderer,
+	type OnTitleLayoutParams,
+	type OnValueAxisLayoutParams,
 	type PointerType,
 	type Positioning,
 	type WasmGraphRendererInterop,
-} from "./graphRenderer";
-import { colorToWasmColor } from "./wasmUtils.js";
+} from "../graphRenderer.js";
+import { colorToWasmColor } from "../wasmUtils.js";
+import BarChartGL from "./barChartGL.js";
+import { clamp, roundToNearestMultiple } from "../../utils.js";
 
-export interface DataPoint {
-	title: string;
-	displayTitle?: string;
+export interface DataPoint<TTitle> {
+	title: TTitle;
 	value: number;
 }
 
-export type BarChartData = DataPoint[] & GraphData;
-type InternalBarChartData = Required<DataPoint>[] & GraphData;
+export type BarChartData<TTitle> = DataPoint<TTitle>[] & GraphData;
+type InternalBarChartData<TTitle> = Required<DataPoint<TTitle>>[] & GraphData;
 
 type ValueAxisOptions = {
 	width?: number;
@@ -53,11 +52,11 @@ interface BarOptions {
 	cornerRadius?: number;
 	minWidth?: number;
 	minHeight?: number;
+	maxBars?: number;
 }
 
 export interface BarChartOptions extends GraphRendererOptions {
 	barOptions?: BarOptions;
-	titleFontSize?: number;
 	valueAxis?: ValueAxisOptions;
 }
 
@@ -85,7 +84,7 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 
 			new WasmBarChartLayout(
 				new WasmPositioning(
-					options.positioning.bottom + options.titleFontSize * devicePixelRatio,
+					options.positioning.bottom,
 					options.positioning.top,
 					options.positioning.left,
 					options.positioning.right,
@@ -111,13 +110,14 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 					colorToWasmColor(options.barOptions.hoverColor),
 					colorToWasmColor(options.barOptions.selectedColor),
 					options.barOptions.hoverScale,
+					options.barOptions.maxBars,
 				),
 
 				colorToWasmColor(options.valueAxis.color),
 			),
 		);
 	}
-	updateData(data: WasmDataPoint[], timestamp: number) {
+	public updateData(data: WasmDataPoint[], timestamp: number) {
 		this.wasmGraph.update_data(data, timestamp);
 	}
 
@@ -146,9 +146,6 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 
 		this.wasmGraph.update(timestamp, pointer.x, pointer.y, clickingState);
 	}
-	render() {
-		this.wasmGraph.render();
-	}
 
 	getIsAnimating() {
 		return this.wasmGraph.get_is_animating();
@@ -166,6 +163,24 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	getScaleLineXAt(i: number) {
 		return this.wasmGraph.get_scale_line_x_at(i);
 	}
+	getVertexPositions_general() {
+		return this.wasmGraph.get_general_vertex_positions();
+	}
+	getVertexColors_general() {
+		return this.wasmGraph.get_general_vertex_colors();
+	}
+	getVertexPositions_bars() {
+		return this.wasmGraph.get_bar_vertex_positions();
+	}
+	getVertexColors_bars() {
+		return this.wasmGraph.get_bar_vertex_colors();
+	}
+	getRelativeBarVertexPositions() {
+		return this.wasmGraph.get_relative_bar_vertex_positions();
+	}
+	getCornerRadius() {
+		return this.wasmGraph.get_corner_radius();
+	}
 	getBarsLen() {
 		return this.wasmGraph.get_bars_len();
 	}
@@ -174,9 +189,6 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	}
 	getBarHeightAt(i: number) {
 		return this.wasmGraph.get_bar_height_at(i);
-	}
-	getBarTitleAt(i: number) {
-		return this.wasmGraph.get_bar_title_at(i);
 	}
 	getBarXAt(i: number) {
 		return this.wasmGraph.get_bar_x_at(i);
@@ -192,39 +204,57 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	}
 }
 
-function dataToWasmData(data: BarChartData) {
-	return data.map((item) => new WasmDataPoint(item.title, item.value));
+function dataToWasmData<TTitle>(data: BarChartData<TTitle>) {
+	return data.map((item) => new WasmDataPoint(item.value));
 }
 
-function dataToInternalData(data: BarChartData) {
+function dataToInternalData<TTitle>(data: BarChartData<TTitle>) {
 	return data.map((data) => {
-		return { ...data, displayTitle: data.displayTitle ?? data.title };
+		return { ...data };
 	});
 }
 
-export type OnSelectionChangeArgs = {
-	data: DataPoint;
-	positionInfo?: { x: number; y: number; width: number; height: number } | null;
+export type OnSelectionChangeArgs<TTitle> = {
+	data: DataPoint<TTitle>;
+	positionInfo?: {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	} | null;
 	index: number;
 } | null;
-type OnSelectionChange = ((args: OnSelectionChangeArgs) => void) | undefined;
+type OnSelectionChange<TTitle> =
+	| ((args: OnSelectionChangeArgs<TTitle>) => void)
+	| undefined;
 
-export type OnHoverArgs = {
-	data: DataPoint;
-	positionInfo?: { x: number; y: number; width: number; height: number } | null;
+export type OnHoverArgs<TTitle> = {
+	data: DataPoint<TTitle>;
+	positionInfo?: {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	} | null;
 	pointer: { x: number; y: number; type: string };
 	index: number;
 } | null;
-type OnHover = ((args: OnHoverArgs) => void) | undefined;
+type OnHover<TTitle> = ((args: OnHoverArgs<TTitle>) => void) | undefined;
 
 type PointerCallback<T> =
 	| { func: T; includePositionInfo?: false }
 	| { func: Exclude<T, undefined>; includePositionInfo: true };
 
-export interface BarChartCallbacks {
-	onSelectionChange?: PointerCallback<OnSelectionChange>;
-	onHover?: PointerCallback<OnHover>;
-}
+type OnTitleLayout<TTitle> = (args: OnTitleLayoutParams<TTitle>) => void;
+
+type OnValueAxisLayout = (args: OnValueAxisLayoutParams) => void;
+
+export type BarChartCallbacks<TTitle> = {
+	onSelectionChange?: PointerCallback<OnSelectionChange<TTitle>>;
+	onHover?: PointerCallback<OnHover<TTitle>>;
+	onTitleLayout?: OnTitleLayout<TTitle>;
+	onValueAxisLayout?: OnValueAxisLayout;
+};
 
 type InternalBarChartOptions = Required<
 	Omit<BarChartOptions, "positioning" | "valueAxis" | "barOptions">
@@ -233,32 +263,45 @@ type InternalBarChartOptions = Required<
 	valueAxis: Required<ValueAxisOptions>;
 	barOptions: Required<BarOptions>;
 };
-export default class BarChart
+export default class BarChart<TTitle>
 	extends GraphRenderer<
 		WasmBarChart,
 		WasmBarChartInterop,
-		InternalBarChartOptions
+		InternalBarChartOptions,
+		BarChartGL,
+		BarChartData<TTitle>
 	>
 	implements IGraphRenderer
 {
-	private data: InternalBarChartData;
+	private data: InternalBarChartData<TTitle>;
 
-	private onSelectionChange: OnSelectionChange;
+	private onSelectionChange: OnSelectionChange<TTitle>;
 	private onSelectionChangeIncludePositionInfo?: boolean;
 	private selectedBarIndex: number | undefined;
 
-	private onHover: OnHover;
+	private onHover: OnHover<TTitle>;
 	private onHoverIncludePositionInfo?: boolean;
 	private hoveredBarIndex?: number;
+
+	private onTitleLayout?: OnTitleLayout<TTitle>;
+	private onValueAxisLayout?: OnValueAxisLayout;
 
 	constructor(
 		canvas: HTMLCanvasElement,
 		width: number,
 		height: number,
-		data: BarChartData,
-		options?: BarChartOptions,
-		callbacks?: BarChartCallbacks,
+		data: BarChartData<TTitle>,
+		{
+			options,
+			onSelectionChange,
+			onHover,
+			onTitleLayout,
+			onValueAxisLayout,
+		}: {
+			options?: BarChartOptions;
+		} & BarChartCallbacks<TTitle>,
 	) {
+		trace();
 		options ??= {};
 
 		const internalOptions = {
@@ -266,6 +309,7 @@ export default class BarChart
 				r: 0,
 				g: 0,
 				b: 0,
+				a: 255,
 			},
 			positioning:
 				typeof options.positioning !== "number"
@@ -300,8 +344,8 @@ export default class BarChart
 				},
 				minWidth: (options.barOptions?.minWidth ?? 1) * devicePixelRatio,
 				minHeight: (options.barOptions?.minHeight ?? 1) * devicePixelRatio,
+				maxBars: options.barOptions?.maxBars ?? 1000,
 			},
-			titleFontSize: options.titleFontSize ?? 10,
 			valueAxis: {
 				width: (options.valueAxis?.width ?? 0) * devicePixelRatio,
 				color: options.valueAxis?.color ?? { r: 255, g: 255, b: 255 },
@@ -312,14 +356,26 @@ export default class BarChart
 			},
 		};
 
-		super(canvas, width, height, internalOptions);
+		super(
+			canvas,
+			width,
+			height,
+			new BarChartGL({
+				canvas,
+				backgroundColor: options.backgroundColor ?? { r: 0, g: 0, b: 0 },
+				maxBars: internalOptions.barOptions.maxBars,
+			}),
+			internalOptions,
+		);
 
 		this.data = dataToInternalData(data);
-		this.onSelectionChange = callbacks?.onSelectionChange?.func;
+		this.onSelectionChange = onSelectionChange?.func;
 		this.onSelectionChangeIncludePositionInfo =
-			callbacks?.onSelectionChange?.includePositionInfo;
-		this.onHover = callbacks?.onHover?.func;
-		this.onHoverIncludePositionInfo = callbacks?.onHover?.includePositionInfo;
+			onSelectionChange?.includePositionInfo;
+		this.onHover = onHover?.func;
+		this.onHoverIncludePositionInfo = onHover?.includePositionInfo;
+		this.onTitleLayout = onTitleLayout;
+		this.onValueAxisLayout = onValueAxisLayout;
 	}
 
 	public getPositionInfoForBarAt(index: number) {
@@ -331,31 +387,16 @@ export default class BarChart
 		};
 	}
 
-	private drawTitle(index: number) {
-		const barX = this.wasmGraphRenderer.getBarXAt(index);
-		const barWidth = this.wasmGraphRenderer.getBarWidthAt(index);
-		let x = barX - this.options.barOptions.gap * 0.5;
-		const diff = x - this.options.valueAxis.width;
-		let width = barWidth + this.options.barOptions.gap + (diff < 0 ? diff : 0);
-		x = clamp(x, { min: this.options.valueAxis.width });
-		width = clamp(width, { max: this.width - x });
-		const y = this.height - this.options.positioning.bottom;
-
-		fillTextWithMaxWidth(
-			this.ctx,
-			this.data[index].displayTitle,
-			x / devicePixelRatio,
-			y / devicePixelRatio,
-			width / devicePixelRatio,
-			{
-				horizontalAlignment: "center",
-				centerPoint: (barX + barWidth / 2) / devicePixelRatio,
-			},
-		);
-	}
-
-	public updateData(data: BarChartData, timestamp: number) {
+	public updateData(data: BarChartData<TTitle>, timestamp: number) {
+		trace(data);
 		if (data === this.data) {
+			return;
+		}
+
+		if (data.length > this.options.barOptions.maxBars) {
+			logWarn(
+				`Cannot update data to length greater than maxBars, {${data.length}}, {${this.options.barOptions.maxBars}}`,
+			);
 			return;
 		}
 
@@ -382,6 +423,8 @@ export default class BarChart
 		this.data = dataToInternalData(data);
 		this.wasmGraphRenderer.updateData(dataToWasmData(data), timestamp);
 		this.wasmGraphRenderer.update(timestamp, this.pointer);
+
+		super.updateData(data, timestamp);
 	}
 
 	public init(memory: WebAssembly.Memory, startTimestamp: number): void {
@@ -400,6 +443,56 @@ export default class BarChart
 		trace();
 		this.wasmGraphRenderer.wasmGraph.free();
 		this.removeInputEventHandlers();
+	}
+
+	public handleLayout() {
+		trace();
+		const scaleLinesLen = this.wasmGraphRenderer.getScaleLinesCount();
+
+		const valueAxisLayout = [];
+
+		for (let i = 0; i < scaleLinesLen; i++) {
+			valueAxisLayout.push({
+				value: roundToNearestMultiple(
+					this.wasmGraphRenderer.getScaleLineValueAt(i),
+					this.options.valueAxis.smallestScale,
+				),
+				x: 0,
+				y: this.wasmGraphRenderer.getScaleLineYAt(i) / devicePixelRatio,
+				width: this.wasmGraphRenderer.getScaleLineXAt(i) / devicePixelRatio,
+			});
+		}
+
+		this.options.valueAxis.width > 0 &&
+			this.onValueAxisLayout?.(valueAxisLayout);
+
+		//
+
+		const titleLayout = [];
+
+		const barsLen = this.wasmGraphRenderer.getBarsLen();
+		for (let i = 0; i < barsLen; i++) {
+			const barX = this.wasmGraphRenderer.getBarXAt(i);
+			const barWidth = this.wasmGraphRenderer.getBarWidthAt(i);
+			let x = barX - this.options.barOptions.gap * 0.5;
+			const diff = x - this.options.valueAxis.width;
+			let width =
+				barWidth + this.options.barOptions.gap + (diff < 0 ? diff : 0);
+			x = clamp(x, { min: this.options.valueAxis.width });
+			width = clamp(width, { max: this.width - x });
+			const y = this.height - this.options.positioning.bottom;
+
+			titleLayout.push({
+				title: this.data[i].title,
+				x: x / devicePixelRatio,
+				y: y / devicePixelRatio,
+				width: width / devicePixelRatio,
+				height: this.options.positioning.bottom,
+				centerPoint: (barX + barWidth / 2 - x) / devicePixelRatio,
+			});
+		}
+
+		this.options.positioning.bottom > 0 && this.onTitleLayout?.(titleLayout);
 	}
 
 	public onPointerDown(pointerType: string) {
@@ -468,43 +561,29 @@ export default class BarChart
 	public update(timestamp: number) {
 		trace();
 		this.wasmGraphRenderer.update(timestamp, this.pointer);
+
+		const vertexArr_general =
+			this.wasmGraphRenderer.getVertexPositions_general();
+		const colorsArr_general = this.wasmGraphRenderer.getVertexColors_general();
+		const vertexArr_bars = this.wasmGraphRenderer.getVertexPositions_bars();
+		const colorsArr_bars = this.wasmGraphRenderer.getVertexColors_bars();
+		const relativeBarPositions =
+			this.wasmGraphRenderer.getRelativeBarVertexPositions();
+
+		this.glRenderer.updateGeneralBuffers(vertexArr_general, colorsArr_general);
+		this.glRenderer.updateBarsBuffers(
+			vertexArr_bars,
+			colorsArr_bars,
+			relativeBarPositions,
+		);
+		this.glRenderer.setCornerRadius(this.wasmGraphRenderer.getCornerRadius());
+
+		super.update(timestamp);
 	}
 
-	public render() {
+	public render(timestamp: number) {
 		trace({ width: this.width, height: this.height });
-		super.render();
-
-		this.ctx.font = `${this.options.titleFontSize}px Arial`;
-		this.ctx.fillStyle = "white";
-		const scaleLinesLen = this.wasmGraphRenderer.getScaleLinesCount();
-		for (let i = 0; i < scaleLinesLen; i++) {
-			fillTextWithMaxWidth(
-				this.ctx,
-				`${roundToNearestMultiple(this.wasmGraphRenderer.getScaleLineValueAt(i), this.options.valueAxis.smallestScale)}`,
-				0,
-				(this.wasmGraphRenderer.getScaleLineYAt(i) +
-					this.options.titleFontSize / 2) /
-					devicePixelRatio,
-				(this.wasmGraphRenderer.getScaleLineXAt(i) - 10) / devicePixelRatio,
-				{ horizontalAlignment: "right" },
-			);
-
-			// this.ctx.strokeStyle = "red";
-			// this.ctx.strokeRect(
-			// 	0,
-			// 	this.wasmGraphRenderer.getScaleLineYAt(i),
-			// 	this.options.valueAxis.width,
-			// 	this.options.valueAxis.minPixelDistance,
-			// );
-		}
-
-		this.ctx.font = `${this.options.titleFontSize}px Arial`;
-		this.ctx.fillStyle = "white";
-		const barsLen = this.wasmGraphRenderer.getBarsLen();
-
-		for (let i = 0; i < barsLen; i++) {
-			this.drawTitle(i);
-		}
+		super.render(timestamp);
 	}
 
 	public isAnimating() {
