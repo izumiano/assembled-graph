@@ -663,6 +663,8 @@ impl BarChart {
 		let mut all_animations_done = true;
 		let mut any_bar_was_clicked = false;
 		self.hovered_bar_index = None;
+		
+		let height_animation_delay = 800. / if bars_count == 0 { 1. } else { bars_count as f64 };
 
 		for bar_index in 0..bars_count {
 			let bar = &mut self.bars[bar_index];
@@ -671,7 +673,7 @@ impl BarChart {
 				timestamp: self.start_timestamp,
 				scale_t: AnimationStateData { from: 0.0, to: 1.0 },
 			};
-			let animation = Animation::new(&anim_data, timestamp, 500.0, 100.0 * bar_index as f64);
+			let animation = Animation::new(&anim_data, timestamp, 500.0, height_animation_delay * bar_index as f64);
 
 			if !animation.is_completed() {
 				all_animations_done = false;
