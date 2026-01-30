@@ -18,7 +18,7 @@ import {
 	GraphRenderer,
 	type GraphRendererOptions,
 	type IGraphRenderer,
-	type OnTitleLayoutParams,
+	type OnLabelsLayoutParams,
 	type OnValueAxisLayoutParams,
 	type PointerType,
 	type Positioning,
@@ -26,15 +26,19 @@ import {
 } from "../graphRenderer.js";
 import { colorToWasmColor } from "../wasmUtils.js";
 import BarChartGL from "./barChartGL.js";
-import { clamp, roundToNearestMultiple } from "../../utils.js";
+import {
+	clamp,
+	roundToNearestMultiple,
+	type DeepRequired,
+} from "../../utils.js";
 
-export interface DataPoint<TTitle> {
-	title: TTitle;
+export interface DataPoint<TLabel> {
+	label: TLabel;
 	value: number;
 }
 
-export type BarChartData<TTitle> = DataPoint<TTitle>[] & GraphData;
-type InternalBarChartData<TTitle> = Required<DataPoint<TTitle>>[] & GraphData;
+export type BarChartData<TLabel> = DataPoint<TLabel>[] & GraphData;
+type InternalBarChartData<TLabel> = Required<DataPoint<TLabel>>[] & GraphData;
 
 type ValueAxisOptions = {
 	width?: number;
@@ -204,18 +208,18 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	}
 }
 
-function dataToWasmData<TTitle>(data: BarChartData<TTitle>) {
+function dataToWasmData<TLabel>(data: BarChartData<TLabel>) {
 	return data.map((item) => new WasmDataPoint(item.value));
 }
 
-function dataToInternalData<TTitle>(data: BarChartData<TTitle>) {
+function dataToInternalData<TLabel>(data: BarChartData<TLabel>) {
 	return data.map((data) => {
 		return { ...data };
 	});
 }
 
-export type OnSelectionChangeArgs<TTitle> = {
-	data: DataPoint<TTitle>;
+export type OnSelectionChangeArgs<TLabel> = {
+	data: DataPoint<TLabel>;
 	positionInfo?: {
 		x: number;
 		y: number;
@@ -224,12 +228,12 @@ export type OnSelectionChangeArgs<TTitle> = {
 	} | null;
 	index: number;
 } | null;
-type OnSelectionChange<TTitle> =
-	| ((args: OnSelectionChangeArgs<TTitle>) => void)
+type OnSelectionChange<TLabel> =
+	| ((args: OnSelectionChangeArgs<TLabel>) => void)
 	| undefined;
 
-export type OnHoverArgs<TTitle> = {
-	data: DataPoint<TTitle>;
+export type OnHoverArgs<TLabel> = {
+	data: DataPoint<TLabel>;
 	positionInfo?: {
 		x: number;
 		y: number;
@@ -239,67 +243,67 @@ export type OnHoverArgs<TTitle> = {
 	pointer: { x: number; y: number; type: string };
 	index: number;
 } | null;
-type OnHover<TTitle> = ((args: OnHoverArgs<TTitle>) => void) | undefined;
+type OnHover<TLabel> = ((args: OnHoverArgs<TLabel>) => void) | undefined;
 
 type PointerCallback<T> =
 	| { func: T; includePositionInfo?: false }
 	| { func: Exclude<T, undefined>; includePositionInfo: true };
 
-type OnTitleLayout<TTitle> = (args: OnTitleLayoutParams<TTitle>) => void;
+type OnLabelsLayout<TLabel> = (args: OnLabelsLayoutParams<TLabel>) => void;
 
 type OnValueAxisLayout = (args: OnValueAxisLayoutParams) => void;
 
-export type BarChartCallbacks<TTitle> = {
-	onSelectionChange?: PointerCallback<OnSelectionChange<TTitle>>;
-	onHover?: PointerCallback<OnHover<TTitle>>;
-	onTitleLayout?: OnTitleLayout<TTitle>;
+export type BarChartCallbacks<TLabel> = {
+	onSelectionChange?: PointerCallback<OnSelectionChange<TLabel>>;
+	onHover?: PointerCallback<OnHover<TLabel>>;
+	onLabelsLayout?: OnLabelsLayout<TLabel>;
 	onValueAxisLayout?: OnValueAxisLayout;
 };
 
-type InternalBarChartOptions = Required<
-	Omit<BarChartOptions, "positioning" | "valueAxis" | "barOptions">
-> & {
-	positioning: Required<Exclude<Positioning, number>>;
-	valueAxis: Required<ValueAxisOptions>;
-	barOptions: Required<BarOptions>;
-};
-export default class BarChart<TTitle>
+type InternalBarChartOptions = DeepRequired<
+	Omit<BarChartOptions, "positioning" | "valueAxis" | "barOptions"> & {
+		positioning: Exclude<Positioning, number>;
+		valueAxis: ValueAxisOptions;
+		barOptions: BarOptions;
+	}
+>;
+export default class BarChart<TLabel>
 	extends GraphRenderer<
 		WasmBarChart,
 		WasmBarChartInterop,
 		InternalBarChartOptions,
 		BarChartGL,
-		BarChartData<TTitle>
+		BarChartData<TLabel>
 	>
 	implements IGraphRenderer
 {
-	private data: InternalBarChartData<TTitle>;
+	private data: InternalBarChartData<TLabel>;
 
-	private onSelectionChange: OnSelectionChange<TTitle>;
+	private onSelectionChange: OnSelectionChange<TLabel>;
 	private onSelectionChangeIncludePositionInfo?: boolean;
 	private selectedBarIndex: number | undefined;
 
-	private onHover: OnHover<TTitle>;
+	private onHover: OnHover<TLabel>;
 	private onHoverIncludePositionInfo?: boolean;
 	private hoveredBarIndex?: number;
 
-	private onTitleLayout?: OnTitleLayout<TTitle>;
+	private onLabelsLayout?: OnLabelsLayout<TLabel>;
 	private onValueAxisLayout?: OnValueAxisLayout;
 
 	constructor(
 		canvas: HTMLCanvasElement,
 		width: number,
 		height: number,
-		data: BarChartData<TTitle>,
+		data: BarChartData<TLabel>,
 		{
 			options,
 			onSelectionChange,
 			onHover,
-			onTitleLayout,
+			onLabelsLayout,
 			onValueAxisLayout,
 		}: {
 			options?: BarChartOptions;
-		} & BarChartCallbacks<TTitle>,
+		} & BarChartCallbacks<TLabel>,
 	) {
 		trace();
 		options ??= {};
@@ -374,7 +378,7 @@ export default class BarChart<TTitle>
 			onSelectionChange?.includePositionInfo;
 		this.onHover = onHover?.func;
 		this.onHoverIncludePositionInfo = onHover?.includePositionInfo;
-		this.onTitleLayout = onTitleLayout;
+		this.onLabelsLayout = onLabelsLayout;
 		this.onValueAxisLayout = onValueAxisLayout;
 	}
 
@@ -387,7 +391,7 @@ export default class BarChart<TTitle>
 		};
 	}
 
-	public updateData(data: BarChartData<TTitle>, timestamp: number) {
+	public updateData(data: BarChartData<TLabel>, timestamp: number) {
 		trace(data);
 		if (data === this.data) {
 			return;
@@ -409,7 +413,7 @@ export default class BarChart<TTitle>
 				if (
 					!oldDataPoint ||
 					newDataPoint.value !== oldDataPoint.value ||
-					newDataPoint.title !== oldDataPoint.title
+					newDataPoint.label !== oldDataPoint.label
 				) {
 					hasDifference = true;
 					break;
@@ -468,7 +472,7 @@ export default class BarChart<TTitle>
 
 		//
 
-		const titleLayout = [];
+		const labelsLayout = [];
 
 		const barsLen = this.wasmGraphRenderer.getBarsLen();
 		for (let i = 0; i < barsLen; i++) {
@@ -482,8 +486,8 @@ export default class BarChart<TTitle>
 			width = clamp(width, { max: this.width - x });
 			const y = this.height - this.options.positioning.bottom;
 
-			titleLayout.push({
-				title: this.data[i].title,
+			labelsLayout.push({
+				label: this.data[i].label,
 				x: x / devicePixelRatio,
 				y: y / devicePixelRatio,
 				width: width / devicePixelRatio,
@@ -492,7 +496,7 @@ export default class BarChart<TTitle>
 			});
 		}
 
-		this.options.positioning.bottom > 0 && this.onTitleLayout?.(titleLayout);
+		this.options.positioning.bottom > 0 && this.onLabelsLayout?.(labelsLayout);
 	}
 
 	public onPointerDown(pointerType: string) {

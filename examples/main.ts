@@ -6,8 +6,8 @@ import {
 
 const canvas = document.getElementById("graphCanvas") as HTMLCanvasElement;
 const valueAxis = document.getElementById("valueAxis") as HTMLElement;
-const titlesContainer = document.getElementById(
-	"titlesContainer",
+const labelsContainer = document.getElementById(
+	"labelsContainer",
 ) as HTMLElement;
 const graphInfoElem = document.getElementById("graphInfo") as HTMLElement;
 const addBarButton = document.getElementById("addBarButton") as HTMLElement;
@@ -39,9 +39,9 @@ const canvasContainer = canvas.parentElement as HTMLElement;
 const width = canvasContainer.clientWidth;
 const height = canvasContainer.clientHeight;
 
-const data: { title: string; value: number }[] = [
-	{ title: "0", value: randomInt() },
-	{ title: "1", value: randomInt() },
+const data: { label: string; value: number }[] = [
+	{ label: "0", value: randomInt() },
+	{ label: "1", value: randomInt() },
 ];
 
 const graphManager = await GraphManager.create();
@@ -68,7 +68,7 @@ const graph = new BarChart(canvas, width, height, data, {
 
 			const elem = document.createElement("span");
 			elem.innerText = `${value}`;
-			elem.classList.add("titleItem", "rightAlign");
+			elem.classList.add("labelItem", "rightAlign");
 			const boundingRect = measureElemNotInDocument(elem);
 			elem.style.left = `calc(${x}px - 0.5%)`;
 			elem.style.top = `${y - boundingRect.height / 2}px`;
@@ -79,14 +79,14 @@ const graph = new BarChart(canvas, width, height, data, {
 
 		valueAxis.replaceChildren(...elements);
 	},
-	onTitleLayout: (layout) => {
+	onLabelsLayout: (layout) => {
 		const elements: Node[] = [];
 		for (const item of layout) {
-			const { title, x, y, width, height, centerPoint } = item;
+			const { label, x, y, width, height, centerPoint } = item;
 
 			const elem = document.createElement("span");
-			elem.innerText = title;
-			elem.classList.add("titleItem");
+			elem.innerText = label;
+			elem.classList.add("labelItem");
 			const boundingRect = measureElemNotInDocument(elem);
 			const xOffset = centerPoint - boundingRect.width / 2;
 			elem.style.left = `${x + xOffset}px`;
@@ -98,7 +98,7 @@ const graph = new BarChart(canvas, width, height, data, {
 			elements.push(elem);
 		}
 
-		titlesContainer.replaceChildren(...elements);
+		labelsContainer.replaceChildren(...elements);
 	},
 	onHover: {
 		func: (info) => {
@@ -110,7 +110,7 @@ const graph = new BarChart(canvas, width, height, data, {
 
 			const { data, pointer } = info;
 
-			graphInfoElem.innerText = `${data.title}: ${data.value}`;
+			graphInfoElem.innerText = `${data.label}: ${data.value}`;
 
 			const rect = graphInfoElem.getBoundingClientRect();
 
@@ -146,7 +146,7 @@ if (graphManager) {
 
 	addBarButton.onclick = () => {
 		data.push({
-			title: `${data.length}`,
+			label: `${data.length}`,
 			value: randomInt(),
 		});
 		graph.updateData(data, graphManager.getTimestamp());

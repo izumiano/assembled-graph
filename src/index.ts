@@ -19,7 +19,7 @@ export {
 } from "./graphTypes/barChart/barChart";
 export type {
 	OnValueAxisLayoutParams,
-	OnTitleLayoutParams,
+	OnLabelsLayoutParams,
 } from "./graphTypes/graphRenderer";
 export { GraphRenderer } from "./graphTypes/graphRenderer";
 

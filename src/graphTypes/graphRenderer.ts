@@ -2,6 +2,7 @@ import { logError, trace, traceWarn } from "@izumiano/vite-logger";
 import type { ClickingState } from "../graphManager";
 import type WebGLRenderer from "./webGLRenderer";
 import type { IWebGLRenderer } from "./webGLRenderer";
+import type { DeepRequired } from "../utils";
 
 export interface Color {
 	r: number;
@@ -16,8 +17,8 @@ export type OnValueAxisLayoutParams = {
 	y: number;
 	width: number;
 }[];
-export type OnTitleLayoutParams<TTitle> = {
-	title: TTitle;
+export type OnLabelsLayoutParams<TLabel> = {
+	label: TLabel;
 	x: number;
 	y: number;
 	width: number;
@@ -27,19 +28,25 @@ export type OnTitleLayoutParams<TTitle> = {
 
 type PointerEventHandler = (e: PointerEvent) => void;
 
-export type Positioning =
-	| {
-			top?: number;
-			left?: number;
-			right?: number;
-			bottom?: number;
-	  }
-	| number;
+type InternalPositioning = {
+	top?: number;
+	left?: number;
+	right?: number;
+	bottom?: number;
+};
+
+export type Positioning = InternalPositioning | number;
 
 export interface GraphRendererOptions {
 	backgroundColor?: Color;
 	positioning?: Positioning;
 }
+
+type InternalGraphRendererOptions = DeepRequired<
+	Omit<GraphRendererOptions, "positioning"> & {
+		positioning: InternalPositioning;
+	}
+>;
 
 export interface WasmGraphRendererInterop<TGraph> {
 	wasmGraph: TGraph;
@@ -70,7 +77,7 @@ type InputEventType = {
 export type UnknownGraphRenderer = GraphRenderer<
 	unknown,
 	WasmGraphRendererInterop<unknown>,
-	GraphRendererOptions,
+	InternalGraphRendererOptions,
 	WebGLRenderer,
 	unknown
 >;
@@ -79,7 +86,7 @@ export const devicePixelRatio = window.devicePixelRatio || 1;
 export class GraphRenderer<
 	T,
 	WasmInterop extends WasmGraphRendererInterop<T>,
-	TOptions extends GraphRendererOptions,
+	TOptions extends InternalGraphRendererOptions,
 	TGLRenderer extends WebGLRenderer,
 	TData,
 > {
