@@ -499,7 +499,9 @@ export default class BarChart<TTitle>
 		if (pointerType !== "mouse") {
 			this.onPointerMove(pointerType);
 		}
+	}
 
+	public onPointerUp(_pointerType: string) {
 		const selectedBarIndex = this.wasmGraphRenderer.getSelectedBarIndex();
 
 		if (selectedBarIndex === this.selectedBarIndex || !this.onSelectionChange) {

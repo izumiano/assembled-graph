@@ -24,6 +24,7 @@ export default class GraphManager {
 	public static async create(
 		abortSignal?: AbortSignal,
 	): Promise<GraphManager | null> {
+		trace();
 		const initOutput = await init();
 		if (abortSignal?.aborted) {
 			logWarn("aborted");
@@ -142,9 +143,13 @@ export default class GraphManager {
 		renderer.onPointerMove(e.pointerType);
 	}
 
-	private handleEndInput(renderer: IGraphRenderer & UnknownGraphRenderer) {
+	private handleEndInput(
+		e: PointerEvent,
+		renderer: IGraphRenderer & UnknownGraphRenderer,
+	) {
 		renderer.pointer.clickingState = "JustReleased";
 		renderer.update(this.timestamp);
+		renderer.onPointerUp(e.pointerType);
 		renderer.pointer.clickingState = "None";
 		this.pointerStart = null;
 	}
@@ -184,7 +189,7 @@ export default class GraphManager {
 				if (e.button !== 0) {
 					return;
 				}
-				this.handleEndInput(renderer);
+				this.handleEndInput(e, renderer);
 			},
 			canvas,
 		});

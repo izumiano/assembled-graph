@@ -242,6 +242,7 @@ export interface IGraphRenderer {
 	updateData(data: GraphData, timestamp: number): void;
 	isAnimating(): boolean;
 	onPointerDown(pointerType: string): void;
+	onPointerUp(pointerType: string): void;
 	onPointerMove(pointerType: string): void;
 	onPointerLeave(): void;
 	dispose(): void;
