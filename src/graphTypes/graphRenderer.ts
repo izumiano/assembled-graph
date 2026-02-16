@@ -51,7 +51,6 @@ type InternalGraphRendererOptions = DeepRequired<
 export interface WasmGraphRendererInterop<TGraph> {
 	wasmGraph: TGraph;
 
-	getPixelsPtr(): number;
 	resize(width: number, height: number): void;
 	update(
 		timestamp: number,
@@ -99,7 +98,6 @@ export class GraphRenderer<
 
 	protected wasmMemory!: WebAssembly.Memory;
 	protected pixelsArr!: Uint8ClampedArray;
-	protected imageData: ImageData;
 
 	protected wasmGraphRenderer!: WasmInterop;
 	protected glRenderer: TGLRenderer & IWebGLRenderer;
@@ -169,7 +167,6 @@ export class GraphRenderer<
 			this_width: this.width,
 			this_height: this.height,
 		});
-		this.imageData = new ImageData(this.width, this.height);
 		this.pointer = { x: -1, y: -1, clickingState: "None" };
 		this.options = options;
 	}
@@ -226,7 +223,6 @@ export class GraphRenderer<
 		this.width = this.canvas.width;
 		this.height = this.canvas.height;
 		this.wasmGraphRenderer.resize(this.canvas.width, this.canvas.height);
-		this.imageData = new ImageData(this.width, this.height);
 		this.layoutNeedsUpdate = true;
 	}
 

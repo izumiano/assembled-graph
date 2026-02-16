@@ -125,9 +125,6 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 		this.wasmGraph.update_data(data, timestamp);
 	}
 
-	getPixelsPtr() {
-		return this.wasmGraph.pixels_ptr();
-	}
 	resize(width: number, height: number) {
 		this.wasmGraph.resize(width, height);
 	}

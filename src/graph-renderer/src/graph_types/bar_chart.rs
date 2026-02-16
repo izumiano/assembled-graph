@@ -140,7 +140,6 @@ const VERTICES_PER_BAR: usize = 6;
 #[wasm_bindgen]
 pub struct BarChart {
 	data: Vec<DataPoint>,
-	pixels: Vec<u8>,
 	start_timestamp: f64,
 	width: u32,
 	height: u32,
@@ -253,9 +252,6 @@ impl BarChart {
 
 		options: BarChartOptions,
 	) -> BarChart {
-		let size = width * height * 4;
-		let pixels = vec![0; size as usize];
-
 		let max_scale_lines = 100;
 
 		let scale_lines = PreAllocatedCollection::new(
@@ -292,7 +288,6 @@ impl BarChart {
 
 		BarChart {
 			data,
-			pixels,
 			start_timestamp,
 			width,
 			height,
@@ -330,10 +325,6 @@ impl BarChart {
 		}
 	}
 
-	pub fn pixels_ptr(&self) -> *const u8 {
-		self.pixels.as_ptr()
-	}
-
 	pub fn get_width(&self) -> u32 {
 		self.width
 	}
@@ -345,8 +336,6 @@ impl BarChart {
 	pub fn resize(&mut self, width: u32, height: u32) {
 		self.width = width;
 		self.height = height;
-		let size = width * height * 4;
-		self.pixels = vec![0; size as usize];
 	}
 
 	pub fn update_data(&mut self, data: Vec<DataPoint>, timestamp: f64) {
