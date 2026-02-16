@@ -148,7 +148,12 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 				clickingState = WasmClickingState.None;
 		}
 
-		this.wasmGraph.update(timestamp, pointer.x, pointer.y, clickingState);
+		return this.wasmGraph.update(
+			timestamp,
+			pointer.x,
+			pointer.y,
+			clickingState,
+		);
 	}
 
 	getIsAnimating() {
@@ -167,21 +172,21 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	getScaleLineXAt(i: number) {
 		return this.wasmGraph.get_scale_line_x_at(i);
 	}
-	getVertexPositions_general() {
-		return this.wasmGraph.get_general_vertex_positions();
-	}
-	getVertexColors_general() {
-		return this.wasmGraph.get_general_vertex_colors();
-	}
-	getVertexPositions_bars() {
-		return this.wasmGraph.get_bar_vertex_positions();
-	}
-	getVertexColors_bars() {
-		return this.wasmGraph.get_bar_vertex_colors();
-	}
-	getRelativeBarVertexPositions() {
-		return this.wasmGraph.get_relative_bar_vertex_positions();
-	}
+	// getVertexPositions_general() {
+	// 	return this.wasmGraph.get_general_vertex_positions();
+	// }
+	// getVertexColors_general() {
+	// 	return this.wasmGraph.get_general_vertex_colors();
+	// }
+	// getVertexPositions_bars() {
+	// 	return this.wasmGraph.get_bar_vertex_positions();
+	// }
+	// getVertexColors_bars() {
+	// 	return this.wasmGraph.get_bar_vertex_colors();
+	// }
+	// getRelativeBarVertexPositions() {
+	// 	return this.wasmGraph.get_relative_bar_vertex_positions();
+	// }
 	getCornerRadius() {
 		return this.wasmGraph.get_corner_radius();
 	}
@@ -566,21 +571,16 @@ export default class BarChart<TLabel>
 
 	public update(timestamp: number) {
 		trace();
-		this.wasmGraphRenderer.update(timestamp, this.pointer);
+		const barChartData = this.wasmGraphRenderer.update(timestamp, this.pointer);
 
-		const vertexArr_general =
-			this.wasmGraphRenderer.getVertexPositions_general();
-		const colorsArr_general = this.wasmGraphRenderer.getVertexColors_general();
-		const vertexArr_bars = this.wasmGraphRenderer.getVertexPositions_bars();
-		const colorsArr_bars = this.wasmGraphRenderer.getVertexColors_bars();
-		const relativeBarPositions =
-			this.wasmGraphRenderer.getRelativeBarVertexPositions();
-
-		this.glRenderer.updateGeneralBuffers(vertexArr_general, colorsArr_general);
+		this.glRenderer.updateGeneralBuffers(
+			barChartData.vertex_array_general,
+			barChartData.colors_array_general,
+		);
 		this.glRenderer.updateBarsBuffers(
-			vertexArr_bars,
-			colorsArr_bars,
-			relativeBarPositions,
+			barChartData.vertex_array_bars,
+			barChartData.colors_array_bars,
+			barChartData.relative_bar_positions,
 		);
 		this.glRenderer.setCornerRadius(this.wasmGraphRenderer.getCornerRadius());
 

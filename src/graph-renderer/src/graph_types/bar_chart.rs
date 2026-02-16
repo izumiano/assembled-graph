@@ -126,6 +126,15 @@ pub enum ClickingState {
 	JustReleased,
 }
 
+#[wasm_bindgen]
+pub struct WasmBarChartData {
+	pub vertex_array_general: WasmFloat32Array,
+	pub colors_array_general: WasmFloat32Array,
+	pub vertex_array_bars: WasmFloat32Array,
+	pub colors_array_bars: WasmFloat32Array,
+	pub relative_bar_positions: WasmFloat32Array,
+}
+
 const VERTICES_PER_BAR: usize = 6;
 
 #[wasm_bindgen]
@@ -409,7 +418,7 @@ impl BarChart {
 		}
 	}
 
-	pub fn get_bar_vertex_positions(&mut self) -> WasmFloat32Array {
+	fn get_bar_vertex_positions(&mut self) -> WasmFloat32Array {
 		let positions = &mut self.vertex_positions_bars;
 		positions.set_size(self.bars.len() * VERTICES_PER_BAR * 2);
 
@@ -444,7 +453,7 @@ impl BarChart {
 		positions.into()
 	}
 
-	pub fn get_relative_bar_vertex_positions(&mut self) -> WasmFloat32Array {
+	fn get_relative_bar_vertex_positions(&mut self) -> WasmFloat32Array {
 		let positions = &mut self.vertex_relative_bar_positions;
 		positions.set_size(self.bars.len() * VERTICES_PER_BAR * 4);
 
@@ -495,7 +504,7 @@ impl BarChart {
 		positions.into()
 	}
 
-	pub fn get_bar_vertex_colors(&mut self) -> WasmFloat32Array {
+	fn get_bar_vertex_colors(&mut self) -> WasmFloat32Array {
 		let colors = &mut self.vertex_colors_bars;
 		colors.set_size(self.bars.len() * VERTICES_PER_BAR * 4);
 
@@ -516,7 +525,7 @@ impl BarChart {
 		colors.into()
 	}
 
-	pub fn get_general_vertex_positions(&mut self) -> WasmFloat32Array {
+	fn get_general_vertex_positions(&mut self) -> WasmFloat32Array {
 		trace!("get_general_vertex_positions");
 
 		self
@@ -528,7 +537,7 @@ impl BarChart {
 		(&self.vertex_positions_general).into()
 	}
 
-	pub fn get_general_vertex_colors(&mut self) -> WasmFloat32Array {
+	fn get_general_vertex_colors(&mut self) -> WasmFloat32Array {
 		trace!("get_general_vertex_colors");
 
 		self
@@ -663,8 +672,13 @@ impl BarChart {
 		let mut all_animations_done = true;
 		let mut any_bar_was_clicked = false;
 		self.hovered_bar_index = None;
-		
-		let height_animation_delay = 800. / if bars_count == 0 { 1. } else { bars_count as f64 };
+
+		let height_animation_delay = 800.
+			/ if bars_count == 0 {
+				1.
+			} else {
+				bars_count as f64
+			};
 
 		for bar_index in 0..bars_count {
 			let bar = &mut self.bars[bar_index];
@@ -673,7 +687,12 @@ impl BarChart {
 				timestamp: self.start_timestamp,
 				scale_t: AnimationStateData { from: 0.0, to: 1.0 },
 			};
-			let animation = Animation::new(&anim_data, timestamp, 500.0, height_animation_delay * bar_index as f64);
+			let animation = Animation::new(
+				&anim_data,
+				timestamp,
+				500.0,
+				height_animation_delay * bar_index as f64,
+			);
 
 			if !animation.is_completed() {
 				all_animations_done = false;
@@ -892,15 +911,29 @@ impl BarChart {
 		pointer_x: Option<u32>,
 		pointer_y: Option<u32>,
 		clicking_state: ClickingState,
-	) {
+	) -> WasmBarChartData {
 		trace!("update");
 
 		self.calculate_scale_lines();
 		self.calculate_bars(timestamp, pointer_x, pointer_y, clicking_state);
 
+		let vertex_array_general = self.get_general_vertex_positions();
+		let colors_array_general = self.get_general_vertex_colors();
+		let vertex_array_bars = self.get_bar_vertex_positions();
+		let colors_array_bars = self.get_bar_vertex_colors();
+		let relative_bar_positions = self.get_relative_bar_vertex_positions();
+
 		if self.updated_data {
 			self.is_animating = true;
 			self.updated_data = false;
+		}
+
+		WasmBarChartData {
+			vertex_array_general,
+			colors_array_general,
+			vertex_array_bars,
+			colors_array_bars,
+			relative_bar_positions,
 		}
 	}
 }

@@ -126,6 +126,7 @@ where
 	}
 }
 
+#[derive(Clone, Copy)]
 #[wasm_bindgen]
 pub struct WasmFloat32Array {
 	pub pointer: *const f32,
