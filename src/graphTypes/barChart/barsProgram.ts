@@ -6,7 +6,7 @@ import ShaderProgram from "../shaderProgram";
 import fsSource from "./bars.frag";
 import vsSource from "./bars.vert";
 
-const VERTICES_PER_BAR = 6;
+const VERTICES_PER_QUAD = 6;
 
 type AttribLocations = {
 	vertexPosition: number;
@@ -44,7 +44,7 @@ export default class BarsProgram
 			fsSource,
 			["vertexColor", "vertexPosition", "vertexRelativeBarPosition"],
 			["modelViewMatrix", "projectionMatrix", "cornerRadius"],
-			options,
+			{ ...options, maxVertices: options.maxBars * VERTICES_PER_QUAD },
 		);
 	}
 
@@ -55,7 +55,7 @@ export default class BarsProgram
 
 		gl.bufferData(
 			gl.ARRAY_BUFFER,
-			new Float32Array(this.options.maxBars * VERTICES_PER_BAR * 2),
+			new Float32Array(this.options.maxBars * VERTICES_PER_QUAD * 2),
 			gl.DYNAMIC_DRAW,
 		);
 
@@ -65,7 +65,7 @@ export default class BarsProgram
 
 		gl.bufferData(
 			gl.ARRAY_BUFFER,
-			new Float32Array(this.options.maxBars * VERTICES_PER_BAR * 4),
+			new Float32Array(this.options.maxBars * VERTICES_PER_QUAD * 4),
 			gl.DYNAMIC_DRAW,
 		);
 
@@ -75,7 +75,7 @@ export default class BarsProgram
 
 		gl.bufferData(
 			gl.ARRAY_BUFFER,
-			new Float32Array(this.options.maxBars * VERTICES_PER_BAR * 4),
+			new Float32Array(this.options.maxBars * VERTICES_PER_QUAD * 4),
 			gl.DYNAMIC_DRAW,
 		);
 
@@ -203,13 +203,13 @@ export default class BarsProgram
 		modelViewMatrix: number[],
 	) {
 		const gl = this.gl;
+		const offset = 0;
+		const vertexCount = this.buffers.positions.size / 2;
 
-		super.draw(timestamp, projectionMatrix, modelViewMatrix);
+		super.draw(timestamp, projectionMatrix, modelViewMatrix, vertexCount);
 
 		gl.uniform1f(this.uniformLocations.cornerRadius, this.cornerRadius);
 
-		const offset = 0;
-		const vertexCount = this.buffers.positions.size / 2;
 		gl.drawArrays(gl.TRIANGLES, offset, vertexCount);
 	}
 }

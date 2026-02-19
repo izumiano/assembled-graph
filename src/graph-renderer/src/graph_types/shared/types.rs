@@ -1,11 +1,6 @@
 use proc_macros::wasm_struct;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-#[wasm_struct]
-pub struct DataPoint {
-	pub value: f32,
-}
-
 #[wasm_bindgen]
 #[derive(Debug, Copy, Clone)]
 pub enum ClickingState {

@@ -10,6 +10,7 @@ export default class LineChartGL
 	implements IWebGLRenderer
 {
 	private program_general: GeneralProgram;
+	private program_points: GeneralProgram;
 
 	constructor({
 		canvas,
@@ -20,11 +21,13 @@ export default class LineChartGL
 			backgroundColor,
 		});
 
-		this.program_general = new GeneralProgram(this.gl);
+		this.program_general = new GeneralProgram(this.gl, { maxVertices: 600 });
+		this.program_points = new GeneralProgram(this.gl, { maxVertices: 600 });
 	}
 
 	public init(memory: WebAssembly.Memory): void {
 		this.program_general.init(memory);
+		this.program_points.init(memory);
 	}
 
 	public updateGeneralBuffers(
@@ -32,6 +35,13 @@ export default class LineChartGL
 		colors: WasmFloat32Array,
 	) {
 		this.program_general.updateBuffers(positions, colors);
+	}
+
+	public updatePointsBuffers(
+		positions: WasmFloat32Array,
+		colors: WasmFloat32Array,
+	) {
+		this.program_points.updateBuffers(positions, colors);
 	}
 
 	override draw(timestamp: number) {
@@ -42,5 +52,6 @@ export default class LineChartGL
 		const modelViewMatrix = Array.from(mat4.create());
 
 		this.program_general.draw(timestamp, projectionMatrix, modelViewMatrix);
+		this.program_points.draw(timestamp, projectionMatrix, modelViewMatrix);
 	}
 }

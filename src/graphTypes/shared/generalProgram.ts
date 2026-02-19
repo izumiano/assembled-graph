@@ -6,8 +6,6 @@ import ShaderProgram from "../shaderProgram";
 import fsSource from "./general.frag";
 import vsSource from "./general.vert";
 
-const MAX_GENERAL_VERTICES = 100 * 6;
-
 type AttribLocations = {
 	vertexPosition: number;
 	vertexColor: number;
@@ -24,17 +22,20 @@ type Buffers = {
 };
 
 export default class GeneralProgram
-	extends ShaderProgram<AttribLocations, UniformLocations, Buffers, null>
+	extends ShaderProgram<AttribLocations, UniformLocations, Buffers, object>
 	implements IShaderProgram
 {
-	constructor(gl: WebGL2RenderingContext) {
+	constructor(
+		gl: WebGL2RenderingContext,
+		options: { maxVertices: number } = { maxVertices: 600 },
+	) {
 		super(
 			gl,
 			vsSource,
 			fsSource,
 			["vertexColor", "vertexPosition"],
 			["modelViewMatrix", "projectionMatrix"],
-			null,
+			options,
 		);
 	}
 
@@ -45,7 +46,7 @@ export default class GeneralProgram
 
 		gl.bufferData(
 			gl.ARRAY_BUFFER,
-			new Float32Array(MAX_GENERAL_VERTICES * 2),
+			new Float32Array(this.options.maxVertices * 2),
 			gl.DYNAMIC_DRAW,
 		);
 
@@ -55,7 +56,7 @@ export default class GeneralProgram
 
 		gl.bufferData(
 			gl.ARRAY_BUFFER,
-			new Float32Array(MAX_GENERAL_VERTICES * 4),
+			new Float32Array(this.options.maxVertices * 4),
 			gl.DYNAMIC_DRAW,
 		);
 
@@ -142,10 +143,11 @@ export default class GeneralProgram
 		projectionMatrix: number[],
 		modelViewMatrix: number[],
 	) {
-		super.draw(timestamp, projectionMatrix, modelViewMatrix);
-
 		const offset = 0;
 		const vertexCount = this.buffers.positions.size / 2;
+
+		super.draw(timestamp, projectionMatrix, modelViewMatrix, vertexCount);
+
 		this.gl.drawArrays(this.gl.TRIANGLES, offset, vertexCount);
 	}
 }

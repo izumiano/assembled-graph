@@ -6,7 +6,7 @@ import {
 	BarLayout as WasmBarLayout,
 	BarOptions as WasmBarOptions,
 	ClickingState as WasmClickingState,
-	DataPoint as WasmDataPoint,
+	BarChartDataPoint as WasmDataPoint,
 	Positioning as WasmPositioning,
 	ValueAxisLayout as WasmValueAxisLayout,
 } from "../../graph-renderer/pkg/graph_renderer.js";
@@ -30,10 +30,6 @@ import {
 	type DeepRequired,
 } from "../../utils.js";
 import type {
-	DataPoint,
-	OnHover,
-	OnLabelsLayout,
-	OnSelectionChange,
 	OnValueAxisLayout,
 	PointerCallback,
 	ValueAxisOptions,
@@ -199,6 +195,46 @@ function dataToInternalData<TLabel>(data: BarChartData<TLabel>) {
 		return { ...data };
 	});
 }
+
+export interface DataPoint<TLabel> {
+	label: TLabel;
+	value: number;
+}
+
+type PositionInfo = {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+} | null;
+
+export type OnSelectionChangeArgs<TLabel> = {
+	data: DataPoint<TLabel>;
+	positionInfo?: PositionInfo;
+	index: number;
+} | null;
+type OnSelectionChange<TLabel> =
+	| ((args: OnSelectionChangeArgs<TLabel>) => void)
+	| undefined;
+
+export type OnHoverArgs<TLabel> = {
+	data: DataPoint<TLabel>;
+	positionInfo?: PositionInfo;
+	pointer: { x: number; y: number; type: string };
+	index: number;
+} | null;
+type OnHover<TLabel> = ((args: OnHoverArgs<TLabel>) => void) | undefined;
+
+type OnLabelsLayout<TLabel> = (args: OnLabelsLayoutParams<TLabel>) => void;
+
+export type OnLabelsLayoutParams<TLabel> = {
+	label: TLabel;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	centerPoint: number;
+}[];
 
 export type BarChartCallbacks<TLabel> = {
 	onSelectionChange?: PointerCallback<OnSelectionChange<TLabel>>;

@@ -2,7 +2,7 @@ import { logWarn, trace } from "@izumiano/vite-logger";
 import {
 	LineChartLayout as WasmLineChartLayout,
 	ClickingState as WasmClickingState,
-	DataPoint as WasmDataPoint,
+	LineChartDataPoint as WasmDataPoint,
 	LineChart as WasmLineChart,
 	Positioning as WasmPositioning,
 	PointLayout as WasmPointLayout,
@@ -11,12 +11,8 @@ import {
 	PointOptions as WasmPointOptions,
 } from "../../graph-renderer/pkg/graph_renderer";
 // import type { ClickingState } from "../../graphManager";
-import { roundToNearestMultiple, type DeepRequired } from "../../utils";
+import { clamp, roundToNearestMultiple, type DeepRequired } from "../../utils";
 import type {
-	DataPoint,
-	OnHover,
-	OnLabelsLayout,
-	OnSelectionChange,
 	OnValueAxisLayout,
 	PointerCallback,
 	ValueAxisOptions,
@@ -35,13 +31,19 @@ import LineChartGL from "./lineChartGL";
 import { colorToWasmColor } from "../wasmUtils";
 
 function dataToWasmData<TLabel>(data: LineChartData<TLabel>) {
-	return data.map((item) => new WasmDataPoint(item.value));
+	return data.map((item) => new WasmDataPoint(item.x, item.y));
 }
 
 function dataToInternalData<TLabel>(data: LineChartData<TLabel>) {
 	return data.map((data) => {
 		return { ...data };
 	});
+}
+
+export interface DataPoint<TLabel> {
+	label: TLabel;
+	x: number;
+	y: number;
 }
 
 export type LineChartData<TLabel> = DataPoint<TLabel>[] & GraphData;
@@ -63,10 +65,43 @@ export interface LineChartOptions extends GraphRendererOptions {
 type InternalLineChartOptions = InternalGraphRendererOptions &
 	DeepRequired<LineChartOptions>;
 
+type PositionInfo = {
+	x: number;
+	y: number;
+} | null;
+
+export type OnSelectionChangeArgs<TLabel> = {
+	data: DataPoint<TLabel>;
+	positionInfo?: PositionInfo;
+	index: number;
+} | null;
+type OnSelectionChange<TLabel> =
+	| ((args: OnSelectionChangeArgs<TLabel>) => void)
+	| undefined;
+
+export type OnHoverArgs<TLabel> = {
+	data: DataPoint<TLabel>;
+	positionInfo?: PositionInfo;
+	pointer: { x: number; y: number; type: string };
+	index: number;
+} | null;
+type OnHover<TLabel> = ((args: OnHoverArgs<TLabel>) => void) | undefined;
+
+type OnXAxisLayout<TLabel> = (args: OnXAxisLayoutParams<TLabel>) => void;
+
+export type OnXAxisLayoutParams<TLabel> = {
+	label: TLabel;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	centerPoint: number;
+}[];
+
 export type LineChartCallbacks<TLabel> = {
 	onSelectionChange?: PointerCallback<OnSelectionChange<TLabel>>;
 	onHover?: PointerCallback<OnHover<TLabel>>;
-	onLabelsLayout?: OnLabelsLayout<TLabel>;
+	onXAxisLayout?: OnXAxisLayout<TLabel>;
 	onValueAxisLayout?: OnValueAxisLayout;
 };
 
@@ -119,6 +154,33 @@ class WasmLineChartInterop implements WasmGraphRendererInterop<WasmLineChart> {
 				colorToWasmColor(options.valueAxis.color),
 			),
 		);
+	}
+	getPointsLen() {
+		return this.wasmGraph.get_points_len();
+	}
+	getPointXAt(index: number) {
+		return this.wasmGraph.get_point_x_at(index);
+	}
+	getPointYAt(index: number) {
+		return this.wasmGraph.get_point_y_at(index);
+	}
+	getScaleLinesCount() {
+		return this.wasmGraph.get_scale_lines_count();
+	}
+	getScaleLineValueAt(i: number) {
+		return this.wasmGraph.get_scale_line_value_at(i);
+	}
+	getScaleLineYAt(i: number) {
+		return this.wasmGraph.get_scale_line_y_at(i);
+	}
+	getScaleLineXAt(i: number) {
+		return this.wasmGraph.get_scale_line_x_at(i);
+	}
+	getSelectedPointIndex() {
+		return this.wasmGraph.get_selected_point_index();
+	}
+	getHoveredPointIndex() {
+		return this.wasmGraph.get_hovered_point_index();
 	}
 	resize(width: number, height: number) {
 		this.wasmGraph.resize(width, height);
@@ -175,8 +237,8 @@ export default class LineChart<TLabel>
 	private onHoverIncludePositionInfo?: boolean;
 	private hoveredPointIndex?: number;
 
-	private onLabelsLayout?: OnLabelsLayout<TLabel>;
-	private onValueAxisLayout?: OnValueAxisLayout;
+	private onXAxisLayout?: OnXAxisLayout<TLabel>;
+	private onYAxisLayout?: OnValueAxisLayout;
 
 	constructor(
 		canvas: HTMLCanvasElement,
@@ -187,8 +249,8 @@ export default class LineChart<TLabel>
 			options,
 			onSelectionChange,
 			onHover,
-			onLabelsLayout,
-			onValueAxisLayout,
+			onXAxisLayout,
+			onValueAxisLayout: onYAxisLayout,
 		}: {
 			options?: LineChartOptions;
 		} & LineChartCallbacks<TLabel>,
@@ -262,8 +324,8 @@ export default class LineChart<TLabel>
 			onSelectionChange?.includePositionInfo;
 		this.onHover = onHover?.func;
 		this.onHoverIncludePositionInfo = onHover?.includePositionInfo;
-		this.onLabelsLayout = onLabelsLayout;
-		this.onValueAxisLayout = onValueAxisLayout;
+		this.onXAxisLayout = onXAxisLayout;
+		this.onYAxisLayout = onYAxisLayout;
 	}
 
 	public updateData(data: LineChartData<TLabel>, timestamp: number) {
@@ -287,7 +349,8 @@ export default class LineChart<TLabel>
 
 				if (
 					!oldDataPoint ||
-					newDataPoint.value !== oldDataPoint.value ||
+					newDataPoint.y !== oldDataPoint.y ||
+					newDataPoint.x !== oldDataPoint.x ||
 					newDataPoint.label !== oldDataPoint.label
 				) {
 					hasDifference = true;
@@ -324,46 +387,51 @@ export default class LineChart<TLabel>
 		this.removeInputEventHandlers();
 	}
 
+	public getPositionInfoForBarAt(index: number) {
+		return {
+			x: this.wasmGraphRenderer.getPointXAt(index) / devicePixelRatio,
+			y: this.wasmGraphRenderer.getPointYAt(index) / devicePixelRatio,
+		};
+	}
+
 	public handleLayout() {
-		// trace();
-		// const scaleLinesLen = this.wasmGraphRenderer.getScaleLinesCount();
-		// const valueAxisLayout = [];
-		// for (let i = 0; i < scaleLinesLen; i++) {
-		// 	valueAxisLayout.push({
-		// 		value: roundToNearestMultiple(
-		// 			this.wasmGraphRenderer.getScaleLineValueAt(i),
-		// 			this.options.valueAxis.smallestScale,
-		// 		),
-		// 		x: 0,
-		// 		y: this.wasmGraphRenderer.getScaleLineYAt(i) / devicePixelRatio,
-		// 		width: this.wasmGraphRenderer.getScaleLineXAt(i) / devicePixelRatio,
-		// 	});
-		// }
-		// this.options.valueAxis.width > 0 &&
-		// 	this.onValueAxisLayout?.(valueAxisLayout);
-		// //
-		// const labelsLayout = [];
-		// const barsLen = this.wasmGraphRenderer.getBarsLen();
-		// for (let i = 0; i < barsLen; i++) {
-		// 	const barX = this.wasmGraphRenderer.getBarXAt(i);
-		// 	const barWidth = this.wasmGraphRenderer.getBarWidthAt(i);
-		// 	let x = barX - this.options.barOptions.gap * 0.5;
-		// 	const diff = x - this.options.valueAxis.width;
-		// 	let width =
-		// 		barWidth + this.options.barOptions.gap + (diff < 0 ? diff : 0);
-		// 	x = clamp(x, { min: this.options.valueAxis.width });
-		// 	width = clamp(width, { max: this.width - x });
-		// 	const y = this.height - this.options.positioning.bottom;
-		// 	labelsLayout.push({
-		// 		label: this.data[i].label,
-		// 		x: x / devicePixelRatio,
-		// 		y: y / devicePixelRatio,
-		// 		width: width / devicePixelRatio,
-		// 		height: this.options.positioning.bottom,
-		// 		centerPoint: (barX + barWidth / 2 - x) / devicePixelRatio,
-		// 	});
-		// }
-		// this.options.positioning.bottom > 0 && this.onLabelsLayout?.(labelsLayout);
+		trace();
+		const scaleLinesLen = this.wasmGraphRenderer.getScaleLinesCount();
+		const valueAxisLayout = [];
+		for (let i = 0; i < scaleLinesLen; i++) {
+			valueAxisLayout.push({
+				value: roundToNearestMultiple(
+					this.wasmGraphRenderer.getScaleLineValueAt(i),
+					this.options.valueAxis.smallestScale,
+				),
+				x: 0,
+				y: this.wasmGraphRenderer.getScaleLineYAt(i) / devicePixelRatio,
+				width: this.wasmGraphRenderer.getScaleLineXAt(i) / devicePixelRatio,
+			});
+		}
+		this.options.valueAxis.width > 0 && this.onYAxisLayout?.(valueAxisLayout);
+		//
+		const labelsLayout = [];
+		const barsLen = this.wasmGraphRenderer.getPointsLen();
+		for (let i = 0; i < barsLen; i++) {
+			const barX = this.wasmGraphRenderer.getPointXAt(i);
+			const barWidth = 10; // TODO
+			let x = barX;
+			const diff = x - this.options.valueAxis.width;
+			let width = barWidth + (diff < 0 ? diff : 0);
+			x = clamp(x, { min: this.options.valueAxis.width });
+			width = clamp(width, { max: this.width - x });
+			const y = this.height - this.options.positioning.bottom;
+			labelsLayout.push({
+				label: this.data[i].label,
+				x: x / devicePixelRatio,
+				y: y / devicePixelRatio,
+				width: width / devicePixelRatio,
+				height: this.options.positioning.bottom,
+				centerPoint: (barX + barWidth / 2 - x) / devicePixelRatio,
+			});
+		}
+		this.options.positioning.bottom > 0 && this.onXAxisLayout?.(labelsLayout);
 	}
 
 	public onPointerDown(pointerType: string) {
@@ -373,52 +441,55 @@ export default class LineChart<TLabel>
 	}
 
 	public onPointerUp(_pointerType: string) {
-		// const selectedBarIndex = this.wasmGraphRenderer.getSelectedBarIndex();
-		// if (selectedBarIndex === this.selectedBarIndex || !this.onSelectionChange) {
-		// 	return;
-		// }
-		// this.selectedBarIndex = selectedBarIndex;
-		// if (selectedBarIndex == null || selectedBarIndex >= this.data.length) {
-		// 	this.onSelectionChange(null);
-		// 	return;
-		// }
-		// this.onSelectionChange({
-		// 	data: this.data[selectedBarIndex],
-		// 	positionInfo: this.onSelectionChangeIncludePositionInfo
-		// 		? this.getPositionInfoForBarAt(selectedBarIndex)
-		// 		: null,
-		// 	index: selectedBarIndex,
-		// });
+		const selectedBarIndex = this.wasmGraphRenderer.getSelectedPointIndex();
+		if (
+			selectedBarIndex === this.selectedPointIndex ||
+			!this.onSelectionChange
+		) {
+			return;
+		}
+		this.selectedPointIndex = selectedBarIndex;
+		if (selectedBarIndex == null || selectedBarIndex >= this.data.length) {
+			this.onSelectionChange(null);
+			return;
+		}
+		this.onSelectionChange({
+			data: this.data[selectedBarIndex],
+			positionInfo: this.onSelectionChangeIncludePositionInfo
+				? this.getPositionInfoForBarAt(selectedBarIndex)
+				: null,
+			index: selectedBarIndex,
+		});
 	}
 
 	public onPointerMove(pointerType: string) {
-		// const hoveredBarIndex = this.wasmGraphRenderer.getHoveredBarIndex();
-		// if (!this.onHover) {
-		// 	return;
-		// }
-		// if (hoveredBarIndex == null) {
-		// 	if (this.hoveredBarIndex != null) {
-		// 		this.onHover(null);
-		// 		this.hoveredBarIndex = undefined;
-		// 	}
-		// 	return;
-		// }
-		// if (hoveredBarIndex >= this.data.length) {
-		// 	return;
-		// }
-		// this.hoveredBarIndex = hoveredBarIndex;
-		// this.onHover({
-		// 	data: this.data[hoveredBarIndex],
-		// 	positionInfo: this.onHoverIncludePositionInfo
-		// 		? this.getPositionInfoForBarAt(hoveredBarIndex)
-		// 		: null,
-		// 	index: hoveredBarIndex,
-		// 	pointer: {
-		// 		x: this.pointer.x / devicePixelRatio,
-		// 		y: this.pointer.y / devicePixelRatio,
-		// 		type: pointerType,
-		// 	},
-		// });
+		const hoveredBarIndex = this.wasmGraphRenderer.getHoveredPointIndex();
+		if (!this.onHover) {
+			return;
+		}
+		if (hoveredBarIndex == null) {
+			if (this.hoveredPointIndex != null) {
+				this.onHover(null);
+				this.hoveredPointIndex = undefined;
+			}
+			return;
+		}
+		if (hoveredBarIndex >= this.data.length) {
+			return;
+		}
+		this.hoveredPointIndex = hoveredBarIndex;
+		this.onHover({
+			data: this.data[hoveredBarIndex],
+			positionInfo: this.onHoverIncludePositionInfo
+				? this.getPositionInfoForBarAt(hoveredBarIndex)
+				: null,
+			index: hoveredBarIndex,
+			pointer: {
+				x: this.pointer.x / devicePixelRatio,
+				y: this.pointer.y / devicePixelRatio,
+				type: pointerType,
+			},
+		});
 	}
 
 	public onPointerLeave() {
@@ -436,6 +507,11 @@ export default class LineChart<TLabel>
 		this.glRenderer.updateGeneralBuffers(
 			lineChartData.vertex_array_general,
 			lineChartData.colors_array_general,
+		);
+
+		this.glRenderer.updatePointsBuffers(
+			lineChartData.vertex_array_points,
+			lineChartData.colors_array_points,
 		);
 
 		super.update(timestamp);

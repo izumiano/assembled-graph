@@ -7,7 +7,6 @@ use crate::DefineAnimation;
 use crate::animation::*;
 use crate::graph_types::shared::consts::VERTICES_PER_QUAD;
 use crate::graph_types::shared::types::ClickingState;
-use crate::graph_types::shared::types::DataPoint;
 use crate::graph_types::shared::types::PointerState;
 use crate::graph_types::shared::types::Positioning;
 use crate::graph_types::shared::types::ScaleLineObject;
@@ -24,6 +23,11 @@ DefineAnimation!(BarHeightAnimData, CurrentBarHeightAnimData, scale_t);
 
 DefineAnimation!(SelectBarAnimData, CurrentSelectBarAnimData, color_t);
 DefineAnimation!(ClickingBarAnimData, CurrentClickingBarAnimData, color_t);
+
+#[wasm_struct]
+pub struct BarChartDataPoint {
+	value: f32,
+}
 
 #[derive(Debug)]
 struct BarData {
@@ -86,7 +90,7 @@ pub struct WasmBarChartData {
 
 #[wasm_bindgen]
 pub struct BarChart {
-	data: Vec<DataPoint>,
+	data: Vec<BarChartDataPoint>,
 	start_timestamp: f64,
 	width: u32,
 	height: u32,
@@ -134,11 +138,11 @@ pub struct BarChart {
 }
 
 fn handle_data(
-	mut data: Vec<DataPoint>,
+	mut data: Vec<BarChartDataPoint>,
 	old_bars: &[BarData],
 	graph_height: u32,
 	timestamp: f64,
-) -> (Vec<DataPoint>, Vec<BarData>, f32) {
+) -> (Vec<BarChartDataPoint>, Vec<BarData>, f32) {
 	let mut bars: Vec<BarData> = Vec::with_capacity(data.len());
 	let mut max_val = 0.0;
 	for data_point in &data {
@@ -191,7 +195,7 @@ fn handle_data(
 impl BarChart {
 	#[wasm_bindgen(constructor)]
 	pub fn new(
-		data: Vec<DataPoint>,
+		data: Vec<BarChartDataPoint>,
 		start_timestamp: f64,
 		width: u32,
 		height: u32,
@@ -286,7 +290,7 @@ impl BarChart {
 		self.height = height;
 	}
 
-	pub fn update_data(&mut self, data: Vec<DataPoint>, timestamp: f64) {
+	pub fn update_data(&mut self, data: Vec<BarChartDataPoint>, timestamp: f64) {
 		trace!(format!(
 			"Updating data from {:#?} to {:#?}",
 			self.data, data

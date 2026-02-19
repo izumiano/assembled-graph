@@ -9,7 +9,7 @@ use crate::animation::*;
 use crate::graph_types::shared::consts::VERTICES_PER_QUAD;
 use crate::graph_types::shared::types::ValueAxisLayout;
 use crate::graph_types::shared::types::{
-	DataPoint, PointerState, Positioning, ScaleLineObject, SelectedState,
+	PointerState, Positioning, ScaleLineObject, SelectedState,
 };
 use crate::graph_types::utils::Color;
 use crate::utils::NumUtils;
@@ -26,6 +26,14 @@ DefineAnimation!(SelectPointAnimData, CurrentSelectPointAnimData, color_t);
 pub struct WasmLineChartData {
 	pub vertex_array_general: WasmFloat32Array,
 	pub colors_array_general: WasmFloat32Array,
+	pub vertex_array_points: WasmFloat32Array,
+	pub colors_array_points: WasmFloat32Array,
+}
+
+#[wasm_struct]
+pub struct LineChartDataPoint {
+	x: f32,
+	y: f32,
 }
 
 #[derive(Debug)]
@@ -75,7 +83,7 @@ pub struct LineChartOptions {
 
 #[wasm_bindgen]
 pub struct LineChart {
-	data: Vec<DataPoint>,
+	data: Vec<LineChartDataPoint>,
 	start_timestamp: f64,
 	width: u32,
 	height: u32,
@@ -103,7 +111,9 @@ pub struct LineChart {
 
 	hover_scale: f32,
 
-	max_val: f32,
+	min_x: f32,
+	max_x: f32,
+	max_y: f32,
 
 	is_animating: bool,
 	selected_point_index: Option<usize>,
@@ -113,22 +123,27 @@ pub struct LineChart {
 
 	vertex_positions_general: PreAllocatedCollection<f32>,
 	vertex_colors_general: PreAllocatedCollection<f32>,
-	// vertex_positions_bars: PreAllocatedCollection<f32>,
-	// vertex_colors_bars: PreAllocatedCollection<f32>,
-	// vertex_relative_bar_positions: PreAllocatedCollection<f32>,
+	vertex_positions_points: PreAllocatedCollection<f32>,
+	vertex_colors_points: PreAllocatedCollection<f32>,
 }
 
 fn handle_data(
-	mut data: Vec<DataPoint>,
+	mut data: Vec<LineChartDataPoint>,
 	old_points: &[PointData],
 	graph_height: u32,
 	timestamp: f64,
-) -> (Vec<DataPoint>, Vec<PointData>, f32) {
+) -> (Vec<LineChartDataPoint>, Vec<PointData>, f32, f32, f32) {
 	let mut points: Vec<PointData> = Vec::with_capacity(data.len());
-	let mut max_val = 0.0;
+	let mut min_x = 0.;
+	let mut max_x = 0.;
+	let mut max_y = 0.;
 	for data_point in &data {
-		max_val = data_point.value.max(max_val);
+		min_x = data_point.x.min(min_x);
+		max_x = data_point.x.max(max_x);
+		max_y = data_point.y.max(max_y);
 	}
+
+	trace!("handle_data", min_x, max_x, max_y);
 
 	for (index, data_point) in &mut data.iter_mut().enumerate() {
 		let mut start_scale_t = 0.;
@@ -164,17 +179,18 @@ fn handle_data(
 			},
 		});
 
-		data_point.value /= max_val;
+		data_point.x /= max_x - min_x;
+		data_point.y /= max_y;
 	}
 
-	(data, points, max_val)
+	(data, points, min_x, max_x, max_y)
 }
 
 #[wasm_bindgen]
 impl LineChart {
 	#[wasm_bindgen(constructor)]
 	pub fn new(
-		data: Vec<DataPoint>,
+		data: Vec<LineChartDataPoint>,
 		start_timestamp: f64,
 		width: u32,
 		height: u32,
@@ -197,7 +213,7 @@ impl LineChart {
 			max_scale_lines,
 		);
 
-		let (data, points, max_val) = handle_data(
+		let (data, points, min_x, max_x, max_y) = handle_data(
 			data,
 			&[],
 			height - layout.positioning.bottom - layout.positioning.top,
@@ -211,11 +227,10 @@ impl LineChart {
 		let vertex_colors_general =
 			PreAllocatedCollection::new(0., 0, max_scale_lines * VERTICES_PER_QUAD * 4);
 
-		// let vertex_positions_bars =
-		// 	PreAllocatedCollection::new(0., 0, max_points * VERTICES_PER_QUAD * 2);
-		// let vertex_colors_bars = PreAllocatedCollection::new(0., 0, max_points * VERTICES_PER_QUAD * 4);
-		// let vertex_relative_bar_positions =
-		// 	PreAllocatedCollection::new(0., 0, max_points * VERTICES_PER_QUAD * 4);
+		let vertex_positions_points =
+			PreAllocatedCollection::new(0., 0, max_points * VERTICES_PER_QUAD * 2);
+		let vertex_colors_points =
+			PreAllocatedCollection::new(0., 0, max_points * VERTICES_PER_QUAD * 4);
 
 		Self {
 			data,
@@ -234,7 +249,9 @@ impl LineChart {
 			value_axis_smallest_scale: layout.value_axis_layout.value_axis_smallest_scale,
 			value_axis_min_pixel_distance: layout.value_axis_layout.value_axis_min_pixel_distance,
 			hover_scale: options.point_options.hover_scale,
-			max_val,
+			min_x,
+			max_x,
+			max_y,
 			is_animating: true,
 			selected_point_index: None,
 			hovered_point_index: None,
@@ -246,9 +263,8 @@ impl LineChart {
 
 			vertex_positions_general,
 			vertex_colors_general,
-			// vertex_positions_bars,
-			// vertex_colors_bars,
-			// vertex_relative_bar_positions,
+			vertex_positions_points,
+			vertex_colors_points,
 		}
 	}
 
@@ -265,12 +281,12 @@ impl LineChart {
 		self.height = height;
 	}
 
-	pub fn update_data(&mut self, data: Vec<DataPoint>, timestamp: f64) {
+	pub fn update_data(&mut self, data: Vec<LineChartDataPoint>, timestamp: f64) {
 		trace!(format!(
 			"Updating data from {:#?} to {:#?}",
 			self.data, data
 		));
-		let (data, points, max_val) = handle_data(
+		let (data, points, min_x, max_x, max_y) = handle_data(
 			data,
 			&self.points,
 			self.height - self.bottom - self.top,
@@ -278,7 +294,9 @@ impl LineChart {
 		);
 		self.data = data;
 		self.points = points;
-		self.max_val = max_val;
+		self.min_x = min_x;
+		self.max_x = max_x;
+		self.max_y = max_y;
 		self.start_timestamp = timestamp;
 		self.updated_data = true;
 	}
@@ -334,8 +352,8 @@ impl LineChart {
 		}
 	}
 
-	fn get_bar_vertex_positions(&mut self) -> WasmFloat32Array {
-		let positions = &mut self.vertex_positions_general; // TODO
+	fn get_points_vertex_positions(&mut self) -> WasmFloat32Array {
+		let positions = &mut self.vertex_positions_points;
 		positions.set_size(self.points.len() * VERTICES_PER_QUAD * 2);
 
 		for (i, point) in self.points.iter().enumerate() {
@@ -369,8 +387,8 @@ impl LineChart {
 		positions.into()
 	}
 
-	fn get_bar_vertex_colors(&mut self) -> WasmFloat32Array {
-		let colors = &mut self.vertex_colors_general; // TODO
+	fn get_points_vertex_colors(&mut self) -> WasmFloat32Array {
+		let colors = &mut self.vertex_colors_points;
 		colors.set_size(self.points.len() * VERTICES_PER_QUAD * 4);
 
 		for (i, point) in self.points.iter().enumerate() {
@@ -390,29 +408,29 @@ impl LineChart {
 		colors.into()
 	}
 
-	// fn get_general_vertex_positions(&mut self) -> WasmFloat32Array {
-	// 	trace!("get_general_vertex_positions");
+	fn get_general_vertex_positions(&mut self) -> WasmFloat32Array {
+		trace!("get_general_vertex_positions");
 
-	// 	self
-	// 		.vertex_positions_general
-	// 		.set_size(self.scale_lines.len() * VERTICES_PER_QUAD * 2);
+		self
+			.vertex_positions_general
+			.set_size(self.scale_lines.len() * VERTICES_PER_QUAD * 2);
 
-	// 	self.get_scale_line_vertex_positions();
+		self.get_scale_line_vertex_positions();
 
-	// 	(&self.vertex_positions_general).into()
-	// }
+		(&self.vertex_positions_general).into()
+	}
 
-	// fn get_general_vertex_colors(&mut self) -> WasmFloat32Array {
-	// 	trace!("get_general_vertex_colors");
+	fn get_general_vertex_colors(&mut self) -> WasmFloat32Array {
+		trace!("get_general_vertex_colors");
 
-	// 	self
-	// 		.vertex_colors_general
-	// 		.set_size(self.scale_lines.len() * VERTICES_PER_QUAD * 4);
+		self
+			.vertex_colors_general
+			.set_size(self.scale_lines.len() * VERTICES_PER_QUAD * 4);
 
-	// 	self.get_scale_line_vertex_colors();
+		self.get_scale_line_vertex_colors();
 
-	// 	(&self.vertex_colors_general).into()
-	// }
+		(&self.vertex_colors_general).into()
+	}
 
 	pub fn get_points_len(&self) -> usize {
 		self.points.len()
@@ -504,6 +522,7 @@ impl LineChart {
 
 		let bottom = self.bottom;
 
+		let width = self.width as i32 - left as i32 - self.right as i32;
 		let height = self.height as i32 - self.top as i32 - bottom as i32;
 
 		let mut all_animations_done = true;
@@ -514,8 +533,9 @@ impl LineChart {
 			let point = &mut self.points[point_index];
 
 			let x_pos = (point_index as f32 * 20. + left as f32).to_u32(); // TODO: calculate x pos based on data
+			let x_pos = (self.data[point_index].x * width as f32).to_u32() + left;
 
-			let height = (height as f32 * self.data[point_index].value).to_u32();
+			let height = (height as f32 * self.data[point_index].y).to_u32();
 			let y_pos = (self.height as i32 - bottom as i32 - height as i32).to_u32();
 
 			point.x = x_pos;
@@ -647,7 +667,7 @@ impl LineChart {
 		let min_pixel_dist = self.value_axis_min_pixel_distance as f32;
 
 		let height = (self.height as i32 - self.top as i32 - self.bottom as i32) as f32;
-		let mut pixel_distance = (smallest_scale / self.max_val) * height;
+		let mut pixel_distance = (smallest_scale / self.max_y) * height;
 
 		let mut mult: i64 = 1;
 
@@ -675,7 +695,7 @@ impl LineChart {
 
 			let ratio = total_pixel_dist / height;
 
-			let value = ratio * self.max_val;
+			let value = ratio * self.max_y;
 
 			let modu = (value.round() % (smallest_scale * mult as f32 * 2.0)).to_u32();
 			let y =
@@ -697,7 +717,7 @@ impl LineChart {
 		scale_line.width = (self.width as i32 - x_offset as i32).to_u32();
 		scale_line.height = thickness;
 		scale_line.intensity = 255;
-		scale_line.value = self.max_val;
+		scale_line.value = self.max_y;
 
 		let scale_line = &mut self.scale_lines[success_line_count as usize];
 		scale_line.x = x_offset;
@@ -724,12 +744,10 @@ impl LineChart {
 		self.calculate_scale_lines();
 		self.calculate_points(timestamp, pointer_x, pointer_y, clicking_state);
 
-		// let vertex_array_general = self.get_general_vertex_positions();
-		// let colors_array_general = self.get_general_vertex_colors();
-		// let vertex_array_bars = self.get_bar_vertex_positions();
-		// let colors_array_bars = self.get_bar_vertex_colors();
-		let vertex_array_general = self.get_bar_vertex_positions();
-		let colors_array_general = self.get_bar_vertex_colors();
+		let vertex_array_general = self.get_general_vertex_positions();
+		let colors_array_general = self.get_general_vertex_colors();
+		let vertex_array_points = self.get_points_vertex_positions();
+		let colors_array_points = self.get_points_vertex_colors();
 
 		if self.updated_data {
 			self.is_animating = true;
@@ -739,9 +757,8 @@ impl LineChart {
 		WasmLineChartData {
 			vertex_array_general,
 			colors_array_general,
-			// vertex_array_bars,
-			// colors_array_bars,
-			// relative_bar_positions,
+			vertex_array_points,
+			colors_array_points,
 		}
 	}
 }

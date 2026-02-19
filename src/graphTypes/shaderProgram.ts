@@ -33,7 +33,7 @@ export default class ShaderProgram<
 	protected gl: WebGL2RenderingContext;
 	protected buffers: TBuffers;
 
-	protected options: TOptions;
+	protected options: TOptions & { maxVertices: number };
 
 	protected program: WebGLProgram;
 	protected attribLocations: TAttribLocations;
@@ -47,7 +47,7 @@ export default class ShaderProgram<
 		fsSource: string,
 		attribs: (keyof TAttribLocations)[],
 		uniforms: (keyof TUniformLocations)[],
-		options: TOptions,
+		options: TOptions & { maxVertices: number },
 	) {
 		this.gl = gl;
 		this.options = options;
@@ -121,7 +121,7 @@ export default class ShaderProgram<
 		);
 	}
 
-	protected wasmArrayToFloat32Array(arr: { pointer: number; size: number }) {
+	public wasmArrayToFloat32Array(arr: { pointer: number; size: number }) {
 		return new Float32Array(this.wasmMemory.buffer, arr.pointer, arr.size);
 	}
 
@@ -135,7 +135,20 @@ export default class ShaderProgram<
 		_timestamp: number,
 		projectionMatrix: number[],
 		modelViewMatrix: number[],
+		vertexCount: number,
 	) {
+		if (
+			import.meta.env.MODE === "development" ||
+			import.meta.env.VITE_TRACE === "true"
+		) {
+			if (vertexCount > this.options.maxVertices) {
+				logError(
+					`Vertex count (${vertexCount}) is greater than maxVertices (${this.options.maxVertices})`,
+				);
+				return;
+			}
+		}
+
 		const gl = this.gl;
 		gl.useProgram(this.program);
 		this.setAttributes(gl);
