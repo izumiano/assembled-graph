@@ -18,10 +18,8 @@ import {
 	GraphRenderer,
 	type GraphRendererOptions,
 	type IGraphRenderer,
-	type OnLabelsLayoutParams,
-	type OnValueAxisLayoutParams,
+	type InternalGraphRendererOptions,
 	type PointerType,
-	type Positioning,
 	type WasmGraphRendererInterop,
 } from "../graphRenderer.js";
 import { colorToWasmColor } from "../wasmUtils.js";
@@ -31,21 +29,18 @@ import {
 	roundToNearestMultiple,
 	type DeepRequired,
 } from "../../utils.js";
-
-export interface DataPoint<TLabel> {
-	label: TLabel;
-	value: number;
-}
+import type {
+	DataPoint,
+	OnHover,
+	OnLabelsLayout,
+	OnSelectionChange,
+	OnValueAxisLayout,
+	PointerCallback,
+	ValueAxisOptions,
+} from "../shared/types.js";
 
 export type BarChartData<TLabel> = DataPoint<TLabel>[] & GraphData;
 type InternalBarChartData<TLabel> = Required<DataPoint<TLabel>>[] & GraphData;
-
-type ValueAxisOptions = {
-	width?: number;
-	color?: Color;
-	smallestScale?: number;
-	minPixelDistance?: number;
-};
 
 interface BarOptions {
 	gap?: number;
@@ -169,21 +164,6 @@ class WasmBarChartInterop implements WasmGraphRendererInterop<WasmBarChart> {
 	getScaleLineXAt(i: number) {
 		return this.wasmGraph.get_scale_line_x_at(i);
 	}
-	// getVertexPositions_general() {
-	// 	return this.wasmGraph.get_general_vertex_positions();
-	// }
-	// getVertexColors_general() {
-	// 	return this.wasmGraph.get_general_vertex_colors();
-	// }
-	// getVertexPositions_bars() {
-	// 	return this.wasmGraph.get_bar_vertex_positions();
-	// }
-	// getVertexColors_bars() {
-	// 	return this.wasmGraph.get_bar_vertex_colors();
-	// }
-	// getRelativeBarVertexPositions() {
-	// 	return this.wasmGraph.get_relative_bar_vertex_positions();
-	// }
 	getCornerRadius() {
 		return this.wasmGraph.get_corner_radius();
 	}
@@ -220,41 +200,6 @@ function dataToInternalData<TLabel>(data: BarChartData<TLabel>) {
 	});
 }
 
-export type OnSelectionChangeArgs<TLabel> = {
-	data: DataPoint<TLabel>;
-	positionInfo?: {
-		x: number;
-		y: number;
-		width: number;
-		height: number;
-	} | null;
-	index: number;
-} | null;
-type OnSelectionChange<TLabel> =
-	| ((args: OnSelectionChangeArgs<TLabel>) => void)
-	| undefined;
-
-export type OnHoverArgs<TLabel> = {
-	data: DataPoint<TLabel>;
-	positionInfo?: {
-		x: number;
-		y: number;
-		width: number;
-		height: number;
-	} | null;
-	pointer: { x: number; y: number; type: string };
-	index: number;
-} | null;
-type OnHover<TLabel> = ((args: OnHoverArgs<TLabel>) => void) | undefined;
-
-type PointerCallback<T> =
-	| { func: T; includePositionInfo?: false }
-	| { func: Exclude<T, undefined>; includePositionInfo: true };
-
-type OnLabelsLayout<TLabel> = (args: OnLabelsLayoutParams<TLabel>) => void;
-
-type OnValueAxisLayout = (args: OnValueAxisLayoutParams) => void;
-
 export type BarChartCallbacks<TLabel> = {
 	onSelectionChange?: PointerCallback<OnSelectionChange<TLabel>>;
 	onHover?: PointerCallback<OnHover<TLabel>>;
@@ -262,13 +207,9 @@ export type BarChartCallbacks<TLabel> = {
 	onValueAxisLayout?: OnValueAxisLayout;
 };
 
-type InternalBarChartOptions = DeepRequired<
-	Omit<BarChartOptions, "positioning" | "valueAxis" | "barOptions"> & {
-		positioning: Exclude<Positioning, number>;
-		valueAxis: ValueAxisOptions;
-		barOptions: BarOptions;
-	}
->;
+type InternalBarChartOptions = InternalGraphRendererOptions &
+	DeepRequired<BarChartOptions>;
+
 export default class BarChart<TLabel>
 	extends GraphRenderer<
 		WasmBarChart,
@@ -310,13 +251,14 @@ export default class BarChart<TLabel>
 		trace();
 		options ??= {};
 
-		const internalOptions = {
-			backgroundColor: options.backgroundColor ?? {
-				r: 0,
-				g: 0,
-				b: 0,
-				a: 255,
-			},
+		const backgroundColor = options.backgroundColor ?? {
+			r: 0,
+			g: 0,
+			b: 0,
+		};
+
+		const internalOptions: InternalBarChartOptions = {
+			backgroundColor: { ...backgroundColor, a: backgroundColor.a ?? 255 },
 			positioning:
 				typeof options.positioning !== "number"
 					? {

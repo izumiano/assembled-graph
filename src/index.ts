@@ -8,19 +8,21 @@ import {
 } from "@izumiano/vite-logger";
 
 export { default as GraphManager } from "./graphManager";
+export type {
+	OnHoverArgs,
+	OnSelectionChangeArgs,
+	DataPoint,
+} from "./graphTypes/shared/types";
 export {
 	type BarChartData,
 	type BarChartOptions,
 	type BarChartCallbacks,
-	type DataPoint as BarChart_DataPoint,
 	default as BarChart,
-	type OnHoverArgs as BarChart_OnHoverArgs,
-	type OnSelectionChangeArgs as BarChart_OnSelectionChangeArgs,
 } from "./graphTypes/barChart/barChart";
 export type {
 	OnValueAxisLayoutParams,
 	OnLabelsLayoutParams,
-} from "./graphTypes/graphRenderer";
+} from "./graphTypes/shared/types";
 export { GraphRenderer } from "./graphTypes/graphRenderer";
 
 export const __assembledGraphLogger__ = {

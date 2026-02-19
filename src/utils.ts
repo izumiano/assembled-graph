@@ -20,5 +20,5 @@ export function clamp(value: number, params: MinMaxType) {
 }
 
 export type DeepRequired<T> = {
-	[P in keyof T]-?: T[P] extends object ? DeepRequired<T[P]> : T[P];
+	[P in keyof T]-?: T[P] extends object ? DeepRequired<T[P]> : Required<T[P]>;
 };

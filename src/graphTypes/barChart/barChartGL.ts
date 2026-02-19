@@ -3,7 +3,7 @@ import WebGLRenderer, { type IWebGLRenderer } from "../webGLRenderer";
 import type { Color } from "../graphRenderer";
 
 import { mat4 } from "gl-matrix";
-import GeneralProgram from "./generalProgram";
+import GeneralProgram from "../shared/generalProgram";
 import BarsProgram from "./barsProgram";
 import type { WasmFloat32Array } from "../../graph-renderer/pkg/graph_renderer";
 

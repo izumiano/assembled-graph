@@ -11,21 +11,6 @@ export interface Color {
 	a?: number;
 }
 
-export type OnValueAxisLayoutParams = {
-	value: number;
-	x: number;
-	y: number;
-	width: number;
-}[];
-export type OnLabelsLayoutParams<TLabel> = {
-	label: TLabel;
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-	centerPoint: number;
-}[];
-
 type PointerEventHandler = (e: PointerEvent) => void;
 
 type InternalPositioning = {
@@ -42,14 +27,14 @@ export interface GraphRendererOptions {
 	positioning?: Positioning;
 }
 
-type InternalGraphRendererOptions = DeepRequired<
+export type InternalGraphRendererOptions = DeepRequired<
 	Omit<GraphRendererOptions, "positioning"> & {
 		positioning: InternalPositioning;
 	}
 >;
 
-export interface WasmGraphRendererInterop<TGraph> {
-	wasmGraph: TGraph;
+export interface WasmGraphRendererInterop<TWasmGraph> {
+	wasmGraph: TWasmGraph;
 
 	resize(width: number, height: number): void;
 	update(
@@ -83,8 +68,8 @@ export type UnknownGraphRenderer = GraphRenderer<
 
 export const devicePixelRatio = window.devicePixelRatio || 1;
 export class GraphRenderer<
-	T,
-	WasmInterop extends WasmGraphRendererInterop<T>,
+	TWasmGraph,
+	WasmInterop extends WasmGraphRendererInterop<TWasmGraph>,
 	TOptions extends InternalGraphRendererOptions,
 	TGLRenderer extends WebGLRenderer,
 	TData,
