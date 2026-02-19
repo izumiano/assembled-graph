@@ -4,6 +4,7 @@ use syn::{Fields, ItemStruct, Visibility, parse_macro_input};
 
 struct Field {
 	struc: proc_macro2::TokenStream,
+	params: proc_macro2::TokenStream,
 	imple: proc_macro2::TokenStream,
 }
 
@@ -32,10 +33,20 @@ pub fn wasm_struct(_attr: TokenStream, input: TokenStream) -> TokenStream {
 					.as_ref()
 					.expect("Named field should have an identifier");
 				let field_type = &field.ty;
+				let field_visibility = &field.vis;
 
 				Field {
-					struc: quote! {
+					struc: if let Visibility::Public(_) = field_visibility {
+						quote! {
+							pub #field_name: #field_type,
+						}
+					} else {
+						quote! {
 							#field_name: #field_type,
+						}
+					},
+					params: quote! {
+						#field_name: #field_type,
 					},
 					imple: quote! {
 						#field_name,
@@ -47,7 +58,7 @@ pub fn wasm_struct(_attr: TokenStream, input: TokenStream) -> TokenStream {
 	};
 
 	let struc = field_code.iter().map(|f| &f.struc);
-	let struc2 = struc.clone();
+	let struc2 = field_code.iter().map(|f| &f.params);
 	let imple = field_code.iter().map(|f| &f.imple);
 
 	let expanded = quote! {
