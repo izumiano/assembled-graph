@@ -2,6 +2,7 @@ import {
 	__assembledGraphLogger__,
 	BarChart,
 	GraphManager,
+	LineChart,
 } from "../dist/index.js";
 
 const canvas = document.getElementById("graphCanvas") as HTMLCanvasElement;
@@ -45,91 +46,94 @@ const data: { label: string; value: number }[] = [
 ];
 
 const graphManager = await GraphManager.create();
-const graph = new BarChart(canvas, width, height, data, {
-	options: {
-		backgroundColor: { r: 10, g: 5, b: 40 },
-		barOptions: {
-			cornerRadius: 20,
-			minWidth: 5,
-			minHeight: 7,
-			hoverScale: 1.1,
-			gap: 20,
-		},
-		valueAxis: {
-			width: 40,
-			minPixelDistance: 35,
-		},
-		positioning: { bottom: 30, top: 20, left: 10, right: 20 },
-	},
-	onValueAxisLayout: (layout) => {
-		const elements: Node[] = [];
-		for (const item of layout) {
-			const { value, x, y, width } = item;
-
-			const elem = document.createElement("span");
-			elem.innerText = `${value}`;
-			elem.classList.add("labelItem", "rightAlign");
-			const boundingRect = measureElemNotInDocument(elem);
-			elem.style.left = `calc(${x}px - 0.5%)`;
-			elem.style.top = `${y - boundingRect.height / 2}px`;
-			elem.style.width = `${width}px`;
-
-			elements.push(elem);
-		}
-
-		valueAxis.replaceChildren(...elements);
-	},
-	onLabelsLayout: (layout) => {
-		const elements: Node[] = [];
-		for (const item of layout) {
-			const { label, x, y, width, height, centerPoint } = item;
-
-			const elem = document.createElement("span");
-			elem.innerText = label;
-			elem.classList.add("labelItem");
-			const boundingRect = measureElemNotInDocument(elem);
-			const xOffset = centerPoint - boundingRect.width / 2;
-			elem.style.left = `${x + xOffset}px`;
-			elem.style.top = `${y}px`;
-
-			elem.style.width = `${width - xOffset}px`;
-			elem.style.height = `${height}px`;
-
-			elements.push(elem);
-		}
-
-		labelsContainer.replaceChildren(...elements);
-	},
-	onHover: {
-		func: (info) => {
-			if (!info) {
-				graphInfoElem.classList.add("hidden");
-				return;
-			}
-			graphInfoElem.classList.remove("hidden");
-
-			const { data, pointer } = info;
-
-			graphInfoElem.innerText = `${data.label}: ${data.value}`;
-
-			const rect = graphInfoElem.getBoundingClientRect();
-
-			let left = pointer.x;
-
-			if (left + rect.width > canvasContainer.clientWidth) {
-				left = canvasContainer.clientWidth - rect.width;
-			}
-
-			let top = pointer.y - rect.height * (pointer.type === "touch" ? 2 : 1);
-			if (top + canvasContainer.offsetTop < 0) {
-				top = -canvasContainer.offsetTop;
-			}
-
-			graphInfoElem.style.left = `${left}px`;
-			graphInfoElem.style.top = `${top}px`;
-		},
-	},
+const graph = new LineChart(canvas, width, height, data, {
+	options: { backgroundColor: { r: 100, g: 100, b: 100 } },
 });
+// const graph = new BarChart(canvas, width, height, data, {
+// 	options: {
+// 		backgroundColor: { r: 10, g: 5, b: 40 },
+// 		barOptions: {
+// 			cornerRadius: 20,
+// 			minWidth: 5,
+// 			minHeight: 7,
+// 			hoverScale: 1.1,
+// 			gap: 20,
+// 		},
+// 		valueAxis: {
+// 			width: 40,
+// 			minPixelDistance: 35,
+// 		},
+// 		positioning: { bottom: 30, top: 20, left: 10, right: 20 },
+// 	},
+// 	onValueAxisLayout: (layout) => {
+// 		const elements: Node[] = [];
+// 		for (const item of layout) {
+// 			const { value, x, y, width } = item;
+
+// 			const elem = document.createElement("span");
+// 			elem.innerText = `${value}`;
+// 			elem.classList.add("labelItem", "rightAlign");
+// 			const boundingRect = measureElemNotInDocument(elem);
+// 			elem.style.left = `calc(${x}px - 0.5%)`;
+// 			elem.style.top = `${y - boundingRect.height / 2}px`;
+// 			elem.style.width = `${width}px`;
+
+// 			elements.push(elem);
+// 		}
+
+// 		valueAxis.replaceChildren(...elements);
+// 	},
+// 	onLabelsLayout: (layout) => {
+// 		const elements: Node[] = [];
+// 		for (const item of layout) {
+// 			const { label, x, y, width, height, centerPoint } = item;
+
+// 			const elem = document.createElement("span");
+// 			elem.innerText = label;
+// 			elem.classList.add("labelItem");
+// 			const boundingRect = measureElemNotInDocument(elem);
+// 			const xOffset = centerPoint - boundingRect.width / 2;
+// 			elem.style.left = `${x + xOffset}px`;
+// 			elem.style.top = `${y}px`;
+
+// 			elem.style.width = `${width - xOffset}px`;
+// 			elem.style.height = `${height}px`;
+
+// 			elements.push(elem);
+// 		}
+
+// 		labelsContainer.replaceChildren(...elements);
+// 	},
+// 	onHover: {
+// 		func: (info) => {
+// 			if (!info) {
+// 				graphInfoElem.classList.add("hidden");
+// 				return;
+// 			}
+// 			graphInfoElem.classList.remove("hidden");
+
+// 			const { data, pointer } = info;
+
+// 			graphInfoElem.innerText = `${data.label}: ${data.value}`;
+
+// 			const rect = graphInfoElem.getBoundingClientRect();
+
+// 			let left = pointer.x;
+
+// 			if (left + rect.width > canvasContainer.clientWidth) {
+// 				left = canvasContainer.clientWidth - rect.width;
+// 			}
+
+// 			let top = pointer.y - rect.height * (pointer.type === "touch" ? 2 : 1);
+// 			if (top + canvasContainer.offsetTop < 0) {
+// 				top = -canvasContainer.offsetTop;
+// 			}
+
+// 			graphInfoElem.style.left = `${left}px`;
+// 			graphInfoElem.style.top = `${top}px`;
+// 		},
+// 	},
+// });
 if (graphManager) {
 	graphManager.addGraph(graph);
 

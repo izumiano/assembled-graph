@@ -19,6 +19,12 @@ export {
 	type BarChartCallbacks,
 	default as BarChart,
 } from "./graphTypes/barChart/barChart";
+export {
+	type LineChartData,
+	type LineChartOptions,
+	type LineChartCallbacks,
+	default as LineChart,
+} from "./graphTypes/lineChart/lineChart";
 export type {
 	OnValueAxisLayoutParams,
 	OnLabelsLayoutParams,
