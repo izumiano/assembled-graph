@@ -1,6 +1,6 @@
+#![allow(warnings)] // TODO: remove this
+
 use proc_macros::wasm_struct;
-use std::cmp::max;
-use std::cmp::min;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::animation::Animation;

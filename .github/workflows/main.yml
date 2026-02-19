@@ -1,12 +1,6 @@
-name: Publish Node.js Package to GitHub Packages
+name: Main
 
-on:
-  push:
-    branches: ["main"]
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
+on: push
 
 permissions:
   contents: write
@@ -64,62 +58,31 @@ jobs:
         with:
           name: package-artifact
           path: dist
-
-  publish:
-    runs-on: ubuntu-latest
-    needs: [build, lint]
-    permissions:
-      contents: read
-      packages: write # Grant write access to packages
-    steps:
-      - uses: actions/download-artifact@v6
-        with:
-          name: package-artifact
-          path: . # Download artifact to current directory
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-          registry-url: "https://npm.pkg.github.com"
-      - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+  
+  publish-package:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    needs: [lint, build]
+    name: Publish to GitHub Packages
+    uses: ./.github/workflows/publish-package.yml
+    with:
+      artifact-name: package-artifact
+      run-id: ${{ github.run_id }}
+    secrets:
+      PAT: ${{ secrets.GITHUB_TOKEN }}
+  
   deploy-pages:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    needs: [lint, build]
+    name: Deploy examples page
+    uses: ./.github/workflows/deploy-pages.yml
+    with:
+      artifact-name: package-artifact
+      run-id: ${{ github.run_id }}
+    secrets:
+      PAT: ${{ secrets.GITHUB_TOKEN }}
     permissions:
-      pages: write # to deploy to Pages
-      id-token: write # to verify the deployment originates from an appropriate source
-      packages: read
-    runs-on: ubuntu-latest
-    needs: [build, lint] # This job depends on the 'build' job
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - uses: actions/download-artifact@v6
-        with:
-          name: package-artifact
-          path: dist
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-          registry-url: "https://npm.pkg.github.com"
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-      - name: Install dependencies
-        run: npm ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build
-        run: npm run buildExamples
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          name: "github-pages"
-          path: "."
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      contents: write
+      pages: write
+      packages: write
+      id-token: write
+

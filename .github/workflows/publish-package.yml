@@ -1,0 +1,44 @@
+name: Publish Node.js Package to GitHub Packages
+
+on:
+  workflow_call:
+    inputs:
+      artifact-name:
+        required: true
+        type: string
+        description: 'The name of the artifact to deploy'
+      run-id:
+        required: true
+        type: string
+        description: 'Run id of calling workflow'
+    secrets:
+      PAT:
+        required: true
+        description: 'Personal Access Token for deployment'
+
+permissions:
+  contents: write
+  pages: write
+  packages: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # Grant write access to packages
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          run-id: ${{ inputs.run-id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: ${{ inputs.artifact-name }}
+          path: . # Download artifact to current directory
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          registry-url: "https://npm.pkg.github.com"
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
